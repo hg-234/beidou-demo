@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>溯源·北斗 · 演示原型</title>
+<script>
+/* 主题预置（防首帧白闪） */
+(function(){try{var t=localStorage.getItem("tb_theme");if(t==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();
+</script>
+<style>
+/* ============================================================
+   设计 Token（语义化，全部换肤仅动这一层）
+   ============================================================ */
+:root{
+  --bg:#eceff4;
+  --bg-grad:radial-gradient(1200px 620px at 12% -8%, #f8fbfe 0%, rgba(248,251,254,0) 62%),
+            radial-gradient(900px 520px at 100% 0%, #eaf0f8 0%, rgba(234,240,248,0) 58%);
+  --surface:#ffffff;
+  --surface-2:#f7f9fc;
+  --surface-3:#f1f4f9;
+  --ink:#141d27;
+  --sub:#4f5d6b;
+  --mut:#8b97a3;
+  --line:#dfe5ed;
+  --line-2:#edf1f6;
+
+  --brand:#2f5c9e;
+  --brand-2:#4a7bc0;
+  --brand-ink:#1d3f6d;
+  --brand-soft:rgba(47,92,158,.075);
+  --brand-glow:rgba(47,92,158,.16);
+
+  --teal:#2f7a6d;
+  --amber:#a2762a;
+  --violet:#6d5b9a;
+
+  --ok:#2c7549;   --ok-bg:#eaf6ef;
+  --warn:#956618; --warn-bg:#fdf6e7;
+  --alert:#b03340;--alert-bg:#fceeef;
+
+  --chrome:rgba(255,255,255,.80);
+  --sh-1:0 1px 2px rgba(16,30,48,.045);
+  --sh-2:0 1px 2px rgba(16,30,48,.05),0 10px 26px -14px rgba(16,30,48,.22);
+  --sh-lift:0 2px 4px rgba(16,30,48,.05),0 18px 44px -22px rgba(16,30,48,.30);
+  --r:14px; --r-sm:9px; --r-xs:7px;
+  --mono:"Cascadia Mono",Consolas,"SFMono-Regular","DejaVu Sans Mono",monospace;
+  --sans:"Microsoft YaHei","PingFang SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --ease:cubic-bezier(.22,.68,.32,1);
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --dur-fast:.14s; --dur-base:.24s; --dur-slow:.46s;
+  --ring:0 0 0 3px var(--brand-glow);
+}
+[data-theme="dark"]{
+  --bg:#0d1117;
+  --bg-grad:radial-gradient(1200px 640px at 10% -10%, #16202c 0%, rgba(22,32,44,0) 60%),
+            radial-gradient(900px 560px at 100% 0%, #131b26 0%, rgba(19,27,38,0) 56%);
+  --surface:#151b24;
+  --surface-2:#1a212b;
+  --surface-3:#1f2733;
+  --ink:#e9eef5;
+  --sub:#a6b2c0;
+  --mut:#76828f;
+  --line:#28313d;
+  --line-2:#202835;
+
+  --brand:#6ea2ea;
+  --brand-2:#8db8f2;
+  --brand-ink:#b8d2f7;
+  --brand-soft:rgba(110,162,234,.10);
+  --brand-glow:rgba(110,162,234,.22);
+
+  --teal:#5cb7a4;
+  --amber:#d8a949;
+  --violet:#a794e0;
+
+  --ok:#5fc088;   --ok-bg:rgba(95,192,136,.12);
+  --warn:#d9a94e; --warn-bg:rgba(217,169,78,.12);
+  --alert:#f0737f;--alert-bg:rgba(240,115,127,.12);
+
+  --chrome:rgba(21,27,36,.82);
+  --sh-1:0 1px 2px rgba(0,0,0,.30);
+  --sh-2:0 1px 2px rgba(0,0,0,.34),0 10px 26px -14px rgba(0,0,0,.62);
+  --sh-lift:0 2px 4px rgba(0,0,0,.36),0 18px 44px -22px rgba(0,0,0,.72);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:132px}
+body{font-family:var(--sans);color:var(--ink);background:var(--bg);background-image:var(--bg-grad);
+  background-attachment:fixed;line-height:1.62;-webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;transition:background-color .3s var(--ease),color .3s var(--ease)}
+.mono,.v,.hv,.pc,.ci,.rv,.num,s,.eyebrow,.kbd kbd{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- 顶部提示条 + 进度 ---------- */
+.proto{position:fixed;top:0;left:0;right:0;z-index:70;background:linear-gradient(90deg,#233040,#2c3b4e 55%,#233040);
+  color:#e6edf5;font-size:12.4px;text-align:center;padding:5px 14px;letter-spacing:.2px}
+.proto b{color:#ffd479}
+.progress{position:fixed;top:28.5px;left:0;right:0;height:2.5px;z-index:69;background:transparent}
+.progress i{display:block;height:100%;width:0;border-radius:0 3px 3px 0;
+  background:linear-gradient(90deg,var(--brand) 0%,var(--brand-2) 60%,var(--teal) 100%);
+  box-shadow:0 0 12px var(--brand-glow);transition:width .48s var(--ease)}
+
+/* ---------- 顶栏 ---------- */
+header{margin-top:31px;position:sticky;top:31px;z-index:60;
+  background:var(--chrome);backdrop-filter:blur(16px) saturate(1.5);-webkit-backdrop-filter:blur(16px) saturate(1.5);
+  border-bottom:1px solid var(--line);box-shadow:0 1px 0 rgba(255,255,255,.35) inset}
+[data-theme="dark"] header{border-bottom-color:var(--line-2);box-shadow:none}
+.hdrbar{max-width:1200px;margin:0 auto;padding:12px 24px 0}
+.brandrow{display:flex;align-items:center;gap:13px;flex-wrap:wrap}
+.mark{width:34px;height:34px;flex:none;border-radius:10px;position:relative;
+  background:linear-gradient(145deg,var(--brand) 0%,var(--brand-ink) 100%);
+  box-shadow:0 6px 16px -8px var(--brand-glow),0 0 0 1px rgba(255,255,255,.12) inset;
+  display:flex;align-items:center;justify-content:center}
+.mark svg{display:block}
+.brand{font-size:19px;font-weight:800;letter-spacing:.5px;line-height:1.2}
+.brand i{color:var(--brand);font-style:normal}
+.brand small{font-weight:400;color:var(--mut);font-size:10.5px;letter-spacing:1.8px;margin-left:7px}
+.ver{color:var(--mut);font-size:12.2px}
+.spacer{flex:1 1 auto}
+.toolbar{display:flex;align-items:center;gap:7px}
+.counter{font-family:var(--mono);font-size:11.5px;color:var(--mut);letter-spacing:.8px;
+  padding:4px 10px;border:1px solid var(--line);border-radius:20px;background:var(--surface-2)}
+.tb{width:31px;height:31px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  border:1px solid var(--line);background:var(--surface);color:var(--sub);border-radius:9px;
+  font-size:13.5px;font-family:var(--mono);transition:.18s var(--ease)}
+.tb:hover{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-2)}
+.tb:active{transform:scale(.92);transition-duration:.07s}
+.tb:focus-visible{outline:none;box-shadow:var(--ring)}
+.orb{width:8px;height:8px;border-radius:50%;background:var(--ok);position:relative;margin-right:2px}
+.orb::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.5px solid var(--ok);
+  animation:pulse 2.1s var(--ease) infinite}
+@keyframes pulse{0%{transform:scale(.65);opacity:.85}70%{transform:scale(1.7);opacity:0}100%{opacity:0}}
+
+nav{display:flex;gap:3px;margin-top:10px;flex-wrap:wrap}
+nav button{border:none;background:transparent;cursor:pointer;font:inherit;font-size:12.9px;
+  color:var(--sub);padding:8px 12.5px;border-radius:9px;position:relative;white-space:nowrap;
+  transition:background .18s var(--ease),color .18s var(--ease)}
+nav button:hover{background:var(--surface-3);color:var(--ink)}
+nav button.on{color:var(--brand);font-weight:700;background:var(--brand-soft)}
+nav button::after{content:"";position:absolute;left:12px;right:12px;bottom:1px;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,var(--brand),var(--brand-2));transform:scaleX(0);
+  transform-origin:left center;transition:transform .26s var(--ease)}
+nav button.on::after{transform:scaleX(1)}
+nav button s{font-size:10.5px;color:var(--mut);text-decoration:none;margin-right:5px;opacity:.85}
+nav button.on s{color:var(--brand);opacity:1}
+nav button:focus-visible{outline:none;box-shadow:var(--ring)}
+.seg button:focus-visible{outline:none;box-shadow:var(--ring)}
+
+main{max-width:1200px;margin:0 auto;padding:26px 24px 74px}
+.screen{display:none}
+.screen.on{display:block}
+.screen.on.anim-in > *{animation:riseIn .46s var(--ease) both}
+@keyframes riseIn{from{opacity:0;transform:translateY(11px)}to{opacity:1;transform:none}}
+@keyframes riseInSoft{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
+/* S0 封面分层入场（错峰，研究：staggered card rise） */
+.screen.on.anim-in .cover>*{animation:riseInSoft var(--dur-slow) var(--ease-out) both}
+.screen.on.anim-in .cover>*:nth-child(1){animation-delay:.05s}
+.screen.on.anim-in .cover>*:nth-child(2){animation-delay:.11s}
+.screen.on.anim-in .cover>*:nth-child(3){animation-delay:.17s}
+.screen.on.anim-in .cards .card{animation:riseInSoft var(--dur-slow) var(--ease-out) both}
+.screen.on.anim-in .cards .card:nth-child(1){animation-delay:.22s}
+.screen.on.anim-in .cards .card:nth-child(2){animation-delay:.29s}
+.screen.on.anim-in .cards .card:nth-child(3){animation-delay:.36s}
+.screen.on.anim-in .cards .card:nth-child(4){animation-delay:.43s}
+.screen.on.anim-in .boundary{animation:riseInSoft var(--dur-slow) var(--ease-out) both;animation-delay:.5s}
+@media (prefers-reduced-motion:reduce){
+  .screen.on.anim-in > *{animation:none!important}
+  .orb::after{animation:none}
+  #S8 .s8loading::before{animation:none}
+  *{transition-duration:.01ms!important}
+}
+
+/* ---------- 通用排版 ---------- */
+.eyebrow{font-size:10.8px;color:var(--mut);letter-spacing:2px;text-transform:uppercase}
+h2.pg{font-size:22.5px;margin:6px 0 6px;letter-spacing:-.2px}
+.pgsub{color:var(--sub);font-size:13.4px;margin:0 0 17px;max-width:920px}
+.pgsub b{color:var(--ink);font-weight:700}
+code{font-family:var(--mono);background:var(--surface-3);padding:1.5px 6px;border-radius:5px;font-size:11.8px;
+  border:1px solid var(--line-2)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-2);
+  padding:16px 17px;transition:box-shadow .3s var(--ease),border-color .3s var(--ease)}
+.panel:hover{box-shadow:var(--sh-lift)}
+.panel h3{font-size:13.4px;margin:0 0 13px;padding-bottom:10px;border-bottom:1px solid var(--line-2);
+  display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.panel h3 em{font-style:normal;font-family:var(--mono);font-size:10.4px;color:var(--mut);font-weight:400}
+.cols3{display:grid;grid-template-columns:1fr 1.26fr .94fr;gap:15px;align-items:start}
+.cols2{display:grid;grid-template-columns:1.3fr 1fr;gap:15px;align-items:start}
+
+/* ---------- S0 封面 ---------- */
+.hero{position:relative;text-align:center;padding:30px 0 4px;overflow:hidden}
+.hero::before{content:"";position:absolute;left:50%;top:-40px;width:760px;height:320px;transform:translateX(-50%);
+  background:radial-gradient(closest-side,var(--brand-glow),transparent 72%);opacity:.55;pointer-events:none}
+.cover h1{font-size:44px;margin:14px 0 8px;letter-spacing:3px;font-weight:800;position:relative}
+.cover h1 i{color:var(--brand);font-style:normal}
+.cover .cs{font-size:16.5px;color:var(--sub);margin-bottom:5px;position:relative}
+.cover .ct{font-size:12.4px;color:var(--mut);margin-bottom:28px;position:relative}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;max-width:1010px;margin:0 auto 22px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 14px;
+  box-shadow:var(--sh-1);text-align:left;position:relative;overflow:hidden;
+  transition:transform .26s var(--ease),box-shadow .26s var(--ease),border-color .26s var(--ease)}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ac,var(--brand))}
+.card::after{content:"";position:absolute;right:-40px;top:-40px;width:110px;height:110px;border-radius:50%;
+  background:var(--ac,var(--brand));opacity:.055;pointer-events:none}
+.card:hover{transform:translateY(-3px);box-shadow:var(--sh-lift);border-color:var(--ac,var(--brand))}
+.card .n{font-family:var(--mono);font-size:10.6px;color:var(--ac,var(--brand));letter-spacing:1.1px;font-weight:700}
+.card .t{font-weight:700;margin:6px 0 5px;font-size:14.6px;letter-spacing:-.1px}
+.card .d{color:var(--sub);font-size:12.4px;line-height:1.56}
+.pipe{max-width:1010px;margin:0 auto}
+.enter{display:block;margin:24px auto 0;padding:12px 36px;border-radius:11px;color:#fff;border:none;font:inherit;
+  font-size:15px;font-weight:600;cursor:pointer;position:relative;
+  background:linear-gradient(140deg,var(--brand) 0%,var(--brand-ink) 100%);
+  box-shadow:0 8px 22px -10px var(--brand-glow),0 1px 0 rgba(255,255,255,.18) inset;
+  transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
+.enter:hover{transform:translateY(-2px);box-shadow:0 14px 30px -12px var(--brand-glow),0 1px 0 rgba(255,255,255,.22) inset}
+.enter:active{transform:translateY(1px) scale(.985);transition-duration:.07s}
+.enter:focus-visible{outline:none;box-shadow:var(--ring),0 14px 30px -12px var(--brand-glow)}
+.boundary{max-width:1010px;margin:22px auto 0;padding:14px 18px;background:var(--warn-bg);
+  border:1px solid color-mix(in srgb,var(--warn) 26%,transparent);border-left:3px solid var(--warn);
+  border-radius:var(--r-xs);color:var(--warn);font-size:12.7px;text-align:left}
+.boundary b{color:var(--warn)}
+[data-theme="dark"] .boundary{color:#e6c88a}
+
+/* ---------- 通用组件 ---------- */
+.kpi{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.kpi div{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 15px;box-shadow:var(--sh-1)}
+.kpi .k{font-size:11.4px;color:var(--mut)}
+.kpi .v{font-size:16.5px;font-weight:700}
+ul.plain{list-style:none;margin:0;padding:0}
+ul.plain li{display:flex;justify-content:space-between;gap:10px;padding:7.5px 0;border-bottom:1px dashed var(--line-2);font-size:13px;align-items:baseline}
+ul.plain li:last-child{border-bottom:none}
+.ok{color:var(--ok);font-weight:700}
+.bad{color:var(--alert);font-weight:700}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:12.5px;
+  padding:7.5px 15px;border-radius:var(--r-xs);cursor:pointer;
+  transition:background .18s var(--ease),border-color .18s var(--ease),transform .18s var(--ease),box-shadow .18s var(--ease)}
+.btn:hover{background:var(--surface-3);border-color:var(--brand-2);transform:translateY(-1px)}
+.btn:active{transform:translateY(1px) scale(.985);transition-duration:.07s}
+.btn:focus-visible{outline:none;box-shadow:var(--ring)}
+.btn.p{background:linear-gradient(140deg,var(--brand),var(--brand-ink));color:#fff;border-color:transparent;
+  box-shadow:0 6px 16px -10px var(--brand-glow)}
+.btn.p:hover{box-shadow:0 10px 22px -10px var(--brand-glow)}
+.btn.g{background:var(--ok);color:#fff;border-color:transparent}
+.btn.r{background:var(--alert);color:#fff;border-color:transparent}
+.btn.s{padding:5.5px 12px;font-size:12px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--surface-2)}
+.seg button{border:none;background:transparent;font:inherit;font-size:12.5px;padding:6.5px 14px;cursor:pointer;color:var(--sub);
+  transition:.2s var(--ease)}
+.seg button.on{background:linear-gradient(140deg,var(--brand),var(--brand-ink));color:#fff;box-shadow:0 4px 12px -8px var(--brand-glow)}
+.tagpill{display:inline-block;font-family:var(--mono);font-size:10.4px;padding:2px 9px;border-radius:20px;border:1px solid var(--line);color:var(--sub)}
+.hint{font-size:11.9px;color:var(--sub);line-height:1.66;margin-top:11px;padding-top:10px;border-top:1px dashed var(--line-2)}
+.hint b{color:var(--ink)}
+.hint code{font-size:11.2px}
+.flagrow{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:6px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 10%,transparent)}
+table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.dt th,table.dt td{padding:7.5px 9px;border-bottom:1px solid var(--line-2);text-align:left}
+table.dt th{border-bottom:1.5px solid var(--ink);font-weight:700;color:var(--ink);font-size:12.4px}
+table.dt th.num,table.dt td.num{text-align:right;font-family:var(--mono)}
+table.dt tbody tr{transition:background .18s var(--ease)}
+table.dt tbody tr:hover{background:var(--brand-soft)}
+table.dt tr:last-child td{border-bottom:1.5px solid var(--ink)}
+
+/* ---------- S1 记录 / 哈希链 ---------- */
+.rec{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:9px;background:var(--surface-2);
+  transition:.28s var(--ease)}
+.rec:hover{border-color:var(--brand-2);background:var(--surface)}
+.rec.bad{border-color:color-mix(in srgb,var(--alert) 45%,transparent);background:var(--alert-bg)}
+.rec .rh{font-family:var(--mono);font-size:10.4px;color:var(--mut);display:flex;justify-content:space-between;align-items:center}
+.rec .rh .st{color:var(--ok);font-weight:700;transition:color .3s var(--ease)}
+.rec.bad .rh .st{color:var(--alert)}
+.frow{display:grid;grid-template-columns:52px minmax(0,1fr);gap:7px;font-size:12.2px;margin-top:5px;align-items:center}
+.frow .fk{color:var(--mut)}
+.frow .fv{font-family:var(--mono);font-size:11.6px;line-height:1.5;overflow-wrap:anywhere;word-break:normal}
+.frow input{font-family:var(--mono);font-size:12.2px;border:1px solid var(--line);border-radius:6px;padding:3.5px 8px;width:100%;
+  background:var(--surface);color:var(--ink);transition:.18s var(--ease)}
+.frow input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
+.chain{display:flex;align-items:center;gap:5px;overflow-x:auto;padding:5px 2px 13px;scrollbar-width:thin}
+.chain::-webkit-scrollbar{height:6px}
+.chain::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.blk{min-width:132px;border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;background:var(--surface-2);
+  position:relative;transition:.32s var(--ease);flex:none}
+.blk.gen{background:var(--brand-soft);border-color:color-mix(in srgb,var(--brand) 28%,transparent)}
+.blk.bad{border-color:var(--alert);background:var(--alert-bg)}
+.blk.scan{box-shadow:0 0 0 3px var(--brand-glow);transform:translateY(-3px);border-color:var(--brand)}
+.blk .bh{font-family:var(--mono);font-size:10.4px;color:var(--brand);font-weight:700}
+.blk.bad .bh,.blk.bad .hv{color:var(--alert)}
+.blk .hv{font-family:var(--mono);font-size:10px;color:var(--sub);word-break:break-all;margin-top:6px;line-height:1.45}
+.blk .lb{font-size:10.4px;color:var(--mut);margin-top:6px}
+.arw{color:var(--mut);font-size:17px;padding:0 2px;flex:none}
+.arw.bad{color:var(--alert)}
+.verdict{margin-top:4px;font-size:12.5px;padding:10px 13px;border-radius:var(--r-xs);border:1px solid;
+  transition:.3s var(--ease)}
+.verdict.ok{background:var(--ok-bg);border-color:color-mix(in srgb,var(--ok) 30%,transparent);color:var(--ok)}
+.verdict.no{background:var(--alert-bg);border-color:color-mix(in srgb,var(--alert) 34%,transparent);color:var(--alert)}
+[data-theme="dark"] .verdict.ok{color:#8fd6ac}
+[data-theme="dark"] .verdict.no{color:#f597a1}
+.rng{display:flex;align-items:center;gap:11px;font-size:12.5px;margin:8px 0}
+.rng label{width:88px;color:var(--sub);flex:none}
+.rng input[type=range]{flex:1;accent-color:var(--brand);height:18px}
+.rng .rv{width:76px;text-align:right;color:var(--ink);font-weight:700;transition:color .2s var(--ease)}
+.flash{animation:flashUp .5s var(--ease)}
+@keyframes flashUp{0%{color:var(--brand);transform:translateY(-3px);opacity:.5}100%{transform:none;opacity:1}}
+
+/* ---------- S4 贡献度 ---------- */
+.contrib{border:1px solid var(--line);border-radius:var(--r-sm);padding:11px 13px;margin-bottom:10px;background:var(--surface-2);
+  transition:.3s var(--ease)}
+.contrib:hover{border-color:var(--brand-2)}
+.contrib.top{border-color:color-mix(in srgb,var(--violet) 42%,transparent);background:linear-gradient(180deg,color-mix(in srgb,var(--violet) 7%,transparent),transparent)}
+.contrib .ct{display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px;align-items:baseline}
+.contrib .nm{font-weight:700}
+.contrib .pc{font-size:14px;font-weight:700;color:var(--brand)}
+.contrib.top .pc{color:var(--violet)}
+.bar{height:9px;background:var(--surface-3);border-radius:5px;overflow:hidden;position:relative}
+.bar>i{display:block;height:100%;border-radius:5px;width:0;
+  transition:width .62s var(--ease);position:relative}
+.bar>i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.34));
+  border-radius:5px}
+.ci{font-family:var(--mono);font-size:10.9px;color:var(--mut);margin-top:6px}
+.badge{font-size:10.4px;font-family:var(--mono);padding:1.5px 8px;border-radius:20px;border:1px solid}
+.badge.pass{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 32%,transparent);background:var(--ok-bg)}
+.badge.out{color:var(--mut);border-color:var(--line);background:var(--surface-3)}
+.nr{border:1px dashed color-mix(in srgb,var(--alert) 38%,transparent);border-radius:var(--r-sm);padding:24px;text-align:center;
+  color:var(--sub);background:var(--alert-bg)}
+.nr b{color:var(--alert);font-size:15px;display:block;margin-bottom:5px}
+
+/* ---------- S3 曲线揭幕动画 ---------- */
+#s3svg rect.wipe{transform-box:fill-box;transform-origin:left center;animation:wipeX .95s var(--ease) .1s both}
+@keyframes wipeX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){#s3svg rect.wipe{animation:none}}
+
+/* ---------- S5 / S6 ---------- */
+.node{cursor:pointer}
+.node rect.shape{transition:transform .25s var(--ease),filter .25s var(--ease);transform-box:fill-box;transform-origin:center}
+.node:hover rect.shape{transform:translateY(-3px);filter:drop-shadow(0 8px 14px var(--brand-glow))}
+.revlog{border-top:1px solid var(--line-2);margin-top:13px;padding-top:10px;font-size:12.5px}
+.revlog .it{display:flex;gap:9px;padding:6px 0;border-bottom:1px dashed var(--line-2)}
+.revlog .it:last-child{border-bottom:none}
+.revlog .it.new{animation:slideIn .42s var(--ease) both}
+@keyframes slideIn{from{opacity:0;transform:translateX(-9px)}to{opacity:1;transform:none}}
+.revlog .tm{font-family:var(--mono);color:var(--mut);flex:none}
+
+/* ---------- S7 报告 ---------- */
+.report{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:26px 30px;font-size:13px;
+  line-height:1.82;box-shadow:var(--sh-2)}
+.report h4{margin:0 0 5px;font-size:16.5px;letter-spacing:-.1px}
+.report .rh{margin:0 0 15px;color:var(--mut);font-size:11.8px;border-bottom:1px solid var(--line-2);padding-bottom:11px;
+  font-family:var(--mono)}
+.report h5{margin:17px 0 6px;font-size:13.4px;color:var(--brand);display:flex;align-items:center;gap:8px}
+.report h5::before{content:"";width:3px;height:13px;border-radius:2px;background:var(--brand);flex:none}
+.report .dec{margin-top:17px;padding:13px 15px;background:var(--warn-bg);
+  border:1px solid color-mix(in srgb,var(--warn) 26%,transparent);border-left:3px solid var(--warn);
+  border-radius:var(--r-xs);color:var(--warn);font-size:12.2px}
+[data-theme="dark"] .report .dec{color:#e6c88a}
+.report table.dt{font-size:12.3px}
+.report.gen > *{animation:riseIn .38s var(--ease) both}
+
+footer{max-width:1200px;margin:0 auto;padding:0 24px 46px;color:var(--mut);font-size:11.9px}
+footer .fl{border-top:1px solid var(--line);padding-top:15px}
+.legend{display:flex;gap:15px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin-top:10px}
+.legend span{display:flex;align-items:center;gap:6px}
+
+/* ---------- 快捷键浮层 ---------- */
+.kbd{position:fixed;right:22px;bottom:22px;z-index:80;width:266px;padding:15px 17px;border-radius:var(--r);
+  background:var(--chrome);backdrop-filter:blur(18px) saturate(1.6);-webkit-backdrop-filter:blur(18px) saturate(1.6);
+  border:1px solid var(--line);box-shadow:var(--sh-lift);
+  opacity:0;transform:translateY(12px) scale(.97);pointer-events:none;
+  transition:opacity .26s var(--ease),transform .26s var(--ease)}
+.kbd.on{opacity:1;transform:none;pointer-events:auto}
+.kbd h4{margin:0 0 11px;font-size:12.8px;letter-spacing:.3px}
+.kbd .row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub);padding:4.5px 0}
+.kbd kbd{background:var(--surface-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;
+  padding:1px 7px;font-size:11px;color:var(--ink)}
+.kbd .tip{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line-2);font-size:11.3px;color:var(--mut)}
+
+@media print{
+  .proto,.progress,header,footer,nav,.btnrow,.seg,.kbd{display:none!important}
+  body{background:#fff}
+  .screen{display:none!important}#S7{display:block!important}
+  .report{box-shadow:none;border:none;padding:0}
+}
+@media (max-width:960px){
+  .cols3,.cols2{grid-template-columns:1fr}
+  .cards{grid-template-columns:1fr 1fr}
+  .cover h1{font-size:34px}
+  .kbd{right:12px;bottom:12px;width:238px}
+  .screen svg{max-width:100%}
+}
+/* 手机竖屏：单列布局 + 触控友好 + 视口高度自适应 */
+@media (max-width:640px){
+  header{margin-top:10px}
+  .cards{grid-template-columns:1fr}
+  .cover h1{font-size:26px}
+  .screen svg{max-width:100%;height:auto}
+  #S8 .s8frame{height:min(calc(100vh - 248px),56vh);min-height:300px}
+  .copyfab{right:12px;bottom:12px;padding:9px 12px;font-size:12.5px}
+  .toastwrap{bottom:76px}
+  .kbd{display:none}
+}
+/* ---------- S8 · 实景时空溯源（iframe 承载伪3D，原版保留） ---------- */
+#S8 .s8wrap{display:flex;flex-direction:column;gap:14px;height:100%}
+#S8 .s8head{display:flex;align-items:flex-start;gap:18px;flex-wrap:wrap}
+#S8 .s8head>div:first-child{flex:1;min-width:280px}
+#S8 .s8tools{display:flex;gap:8px;padding-top:6px;flex:none}
+#S8 .s8frame{position:relative;height:calc(100vh - 248px);min-height:384px;
+  border-radius:var(--r);border:1px solid var(--line);background:var(--surface-2);
+  box-shadow:var(--sh-2);overflow:hidden}
+#S8 .s8frame iframe{width:100%;height:100%;border:0;display:block}
+#S8 .s8loading{position:absolute;inset:0;display:flex;flex-direction:column;gap:14px;align-items:center;justify-content:center;
+  color:var(--mut);font-size:13px;letter-spacing:.5px;background:var(--surface-2);z-index:2}
+#S8 .s8loading::before{content:"";width:32px;height:32px;border-radius:50%;box-sizing:border-box;
+  border:3px solid var(--line);border-top-color:var(--brand);animation:spin .8s linear infinite}
+#S8 .s8hint{font-size:12px;color:var(--sub);line-height:1.9;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:10px 14px;box-shadow:var(--sh-1)}
+#S8 .s8hint b{color:var(--ink)}
+#S8 .s8hint .mono{display:inline-block;padding:0 5px;margin:0 1px;
+  border:1px solid var(--line);border-radius:5px;background:var(--surface-2);color:var(--brand-ink)}
+
+/* ---------- 轻提示 toast（用户反馈机制，参考 modern UI 微交互） ---------- */
+@keyframes spin{to{transform:rotate(360deg)}}
+.toastwrap{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:200;
+  display:flex;flex-direction:column;gap:9px;align-items:center;pointer-events:none}
+.toast{background:var(--ink);color:var(--bg);font-size:12.8px;font-weight:600;
+  padding:9px 16px;border-radius:11px;box-shadow:var(--sh-lift);opacity:0;
+  transform:translateY(10px) scale(.96);transition:opacity .26s var(--ease-out),transform .26s var(--ease-out);
+  letter-spacing:.3px;max-width:88vw}
+.toast.show{opacity:1;transform:none}
+.toast.ok{background:var(--ok);color:#fff}
+.toast.warn{background:var(--warn);color:#fff}
+
+
+/* ===== 复制网址入口（手机浏览器打开） ===== */
+.copyfab{position:fixed;right:18px;bottom:18px;z-index:210;display:inline-flex;align-items:center;gap:7px;padding:10px 14px;border:none;border-radius:12px;background:linear-gradient(140deg,var(--brand),var(--brand-ink));color:#fff;font:600 13.5px/1 system-ui,-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;box-shadow:0 10px 26px -10px var(--brand-glow);cursor:pointer;transition:transform var(--dur-fast) var(--ease),box-shadow var(--dur-base) var(--ease)}
+.copyfab:hover{transform:translateY(-2px);box-shadow:0 16px 34px -12px var(--brand-glow)}
+.copyfab:active{transform:scale(.95)}
+.copyfab:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+
+</style>
+</head>
+<body>
+<div class="proto">演示原型 · 模拟数据 ｜ 展示系统<b>设计目标与实现方式</b>，非已建成的实地系统；数值为合成/回放，用于方案说明</div>
+<div class="progress"><i id="prog"></i></div>
+
+<header>
+  <div class="hdrbar">
+    <div class="brandrow">
+      <div class="mark">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2.4 L21 7.2 V16.8 L12 21.6 L3 16.8 V7.2 Z" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" opacity=".92"/>
+          <path d="M12 7.4 L16.4 9.8 V14.6 L12 17 L7.6 14.6 V9.8 Z" fill="#fff" opacity=".95"/>
+        </svg>
+      </div>
+      <div class="brand">溯源<i>·</i>北斗 <small>TRACE-TO-SOURCE</small></div>
+      <div class="ver">农村水体污染可信溯源与责任链系统 · 演示原型 v2.0</div>
+      <div class="spacer"></div>
+      <div class="toolbar">
+        <span class="counter" id="counter">01 / 08</span>
+        <button class="tb" id="btnTheme" title="切换浅色 / 深色（D）">◐</button>
+        <button class="tb" id="btnFull" title="全屏放映（F）">⛶</button>
+        <button class="tb" id="btnKeys" title="快捷键（?）">?</button>
+      </div>
+    </div>
+    <nav id="nav"></nav>
+  </div>
+</header>
+
+<main id="main">
+  <!-- S0 -->
+  <section class="screen on" id="S0">
+    <div class="cover hero">
+      <div class="eyebrow">第八届湖南省大学生智能导航科技创新大赛 · 科技创意类</div>
+      <h1>溯源<i>·</i>北斗</h1>
+      <div class="cs">农村水体污染可信溯源与责任链系统</div>
+      <div class="ct">演示原型 · 模拟数据 ｜ "做出来是什么效果、每个功能怎么实现"</div>
+    </div>
+    <div class="cards">
+      <div class="card" style="--ac:var(--brand)"><div class="n">L0 · 底座</div><div class="t">可信时空底座</div><div class="d">北斗授时 + 可信时空标签 + 哈希链防篡改</div></div>
+      <div class="card" style="--ac:var(--teal)"><div class="n">L1 · 感知</div><div class="t">多断面同步采样</div><div class="d">同一可信时间基触发，量化迁移时间窗</div></div>
+      <div class="card" style="--ac:var(--amber)"><div class="n">L1→L2</div><div class="t">事件分级上报</div><div class="d">阈值分级 + 盲区短报文"摘要先行"</div></div>
+      <div class="card" style="--ac:var(--violet)"><div class="n">L2→L3</div><div class="t">责任链回溯与解释</div><div class="d">线索排序 + 置信区间 + 可解释 AI + 报告</div></div>
+    </div>
+    <div class="panel pipe">
+      <h3>全流程一图 <em>讲序 = 答辩语序（与计划书图 9 架构对应）</em></h3>
+      <div id="pipeSvg"></div>
+      <div class="legend">
+        <span><i class="dot" style="background:var(--brand)"></i>可信底座</span>
+        <span><i class="dot" style="background:var(--teal)"></i>同步采样</span>
+        <span><i class="dot" style="background:var(--amber)"></i>分级上报</span>
+        <span><i class="dot" style="background:var(--violet)"></i>回溯与解释</span>
+        <span><i class="dot" style="background:var(--alert)"></i>责任方（线索）</span>
+      </div>
+    </div>
+    <button class="enter" id="enterBtn">进入演示 →</button>
+    <div class="boundary"><b>边界声明：</b>本系统输出为执法调查的 <b>"线索排序与时间窗参考"，非直接证据</b>；贡献度为统计意义上的相对排序，<b>不构成对任何主体的责任认定</b>。界面中"同步误差 &lt;1 ms"等为<b>设计目标值</b>，由授时指标与中断抖动推导，原型以开发板抽样验证。</div>
+  </section>
+
+  <!-- S1 -->
+  <section class="screen" id="S1">
+    <div class="eyebrow">L0 · TRUSTED TIME-SPACE BASE</div>
+    <h2 class="pg">可信时空底座：可信标签 · 哈希链 · 篡改检测</h2>
+    <p class="pgsub">每条采样记录封装为 <b>字段定序</b> 的可信时空标签；记录以哈希链串联，<b>C<sub>n</sub> = H(C<sub>n−1</sub> ‖ 记录)</b>。<b>篡改任一字段 → 链校验立即定位首个失配块。</b></p>
+    <div class="cols3">
+      <div class="panel">
+        <h3>可信时空标签<em>可点击编辑</em></h3>
+        <div id="recs"></div>
+        <div class="btnrow">
+          <button class="btn r" id="tamperBtn">模拟篡改 R2 氨氮</button>
+          <button class="btn" id="resetBtn">重置</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>哈希链校验<em>逐块比对</em></h3>
+        <div class="chain" id="chain"></div>
+        <div class="verdict ok" id="verdict">链完整：全部块哈希一致，未检测到篡改。</div>
+        <div class="btnrow" style="margin-top:10px">
+          <button class="btn p s" id="verifyBtn">▶ 逐块校验（动态演示）</button>
+        </div>
+        <div class="hint"><b>机制说明：</b>链首 <code>C0</code> 公开、链尾周期性<b>外部锚定</b>（示意）；哈希在<b>确定性编码</b>（字段定序 + 数值定点化 + UTC 固定格式）后计算，保证可复现。演示用轻量哈希（FNV-1a）仅表达<b>机制</b>，工程实现应换 SHA-256。<br><b>工程实现要点（红队补强）：</b>①编码带<b>长度前缀 / 域分隔</b>，避免拼接歧义（推荐 JCS / CBOR 规范化）；②哈希载荷含 <b>schema 版本号</b>；③定点化写明<b>舍入方式与量化单位</b>；④时间统一 <b>RFC3339 固定精度 + 闰秒策略</b>；⑤哈希链只保证<b>顺序与完整性</b>，可信时间需<b>外部锚定 + 签名</b>，防"事后整链重算"；⑥记录缺失须可区分（留空位 / 补块）。</div>
+      </div>
+      <div class="panel">
+        <h3>北斗授时状态<em>示意</em></h3>
+        <div class="flagrow" style="margin-bottom:12px">
+          <span class="orb"></span><span class="mono" style="font-size:11.5px;color:var(--ok)">LOCKED · 授时正常</span>
+        </div>
+        <ul class="plain">
+          <li><span>授时源</span><span class="v">北斗 B1I / PPS</span></li>
+          <li><span>锁定状态</span><span class="v ok">LOCKED</span></li>
+          <li><span>参考时刻 T<sub>0</sub></span><span class="v" id="t0">--</span></li>
+          <li><span>抖动 σ（目标）</span><span class="v">&lt;1 ms</span></li>
+          <li><span>本地时钟偏差</span><span class="v">±0.3 ms</span></li>
+          <li><span>最近同步</span><span class="v">1 s 前</span></li>
+        </ul>
+        <div class="hint">标签把"<b>何时、何地、何参数、何值</b>"绑在一起；<b>时间用同一可信基准</b>，才使跨断面比对成立。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S2 -->
+  <section class="screen" id="S2">
+    <div class="eyebrow">L1 · SYNCHRONIZED SAMPLING</div>
+    <h2 class="pg">多断面同步采样：用同一可信时间基约束迁移时间窗</h2>
+    <p class="pgsub">三断面在同一参考时刻 <b>T<sub>0</sub></b> 触发采样；偏差越小，<b>断面间到达时刻差 Δt</b> 才越可信，据此反推迁移速度 <code>v = L / Δt</code>。</p>
+    <div class="cols2">
+      <div class="panel">
+        <h3>采样时序（偏差已放大显示）<em id="s2mode">有授时 · σ≈0.8 ms</em></h3>
+        <div id="s2svg"></div>
+        <div class="btnrow">
+          <div class="seg" id="s2seg">
+            <button data-m="w" class="on">有北斗授时</button>
+            <button data-m="n">无授时（本地时钟）</button>
+          </div>
+          <button class="btn p" id="s2play">▶ 播放采样</button>
+          <button class="btn" id="s2reset">重置</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>指标与结论<em>设计目标口径</em></h3>
+        <ul class="plain" id="s2stat"></ul>
+        <div class="hint" id="s2note"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S3 -->
+  <section class="screen" id="S3">
+    <div class="eyebrow">L1→L2 · EVENT GRADING &amp; REPORTING</div>
+    <h2 class="pg">事件触发与分级上报：超标即分级，盲区不丢数据</h2>
+    <p class="pgsub">浓度超过阈值自动触发 → 按幅度<b>分级（带滞回避免抖动）</b> → 有网直传；<b>无网盲区</b>先发"短报文摘要"，复网后补传明细。</p>
+    <div class="cols2">
+      <div class="panel">
+        <h3>中游断面氨氮曲线 (mg/L)<em>合成序列</em></h3>
+        <div id="s3svg"></div>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--teal)"></i>正常 ≤1.0</span>
+          <span><i class="dot" style="background:#c99a3a"></i>一般 1.0–1.5</span>
+          <span><i class="dot" style="background:#b35a2a"></i>较重 1.5–2.5</span>
+          <span><i class="dot" style="background:var(--alert)"></i>严重 &gt;2.5</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>上报链路<em>可切换网络</em></h3>
+        <div class="seg" id="s3seg" style="margin-bottom:13px">
+          <button data-n="online" class="on">有公网</button>
+          <button data-n="blind">无网盲区</button>
+        </div>
+        <ul class="plain" id="s3evt"></ul>
+        <div class="hint" id="s3note"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S4 -->
+  <section class="screen" id="S4">
+    <div class="eyebrow">L2 · RESPONSIBILITY-CHAIN TRACING</div>
+    <h2 class="pg">责任链回溯：机理约束筛选候选源 → 线索排序 + 置信区间</h2>
+    <p class="pgsub">先用<b>机理约束（流向 + 时延）</b>筛选候选源，再对候选做<b>贡献度排序并给出“条件置信区间”</b>；<b>缺测率超阈值时，只输出“不可辨识”，不给权重。</b></p>
+    <div class="cols2">
+      <div class="panel">
+        <h3>候选源与贡献度<em id="s4n">--</em></h3>
+        <div id="s4list"></div>
+        <div id="s4verdict"></div>
+      </div>
+      <div class="panel">
+        <h3>参数（拖动观察变化）</h3>
+        <div class="rng"><label>峰值时差 Δt</label><input type="range" id="s4dt" min="150" max="900" step="10" value="390"><span class="rv" id="s4dtv">390 s</span></div>
+        <div class="rng"><label>缺测率</label><input type="range" id="s4miss" min="0" max="60" step="1" value="8"><span class="rv" id="s4missv">8 %</span></div>
+        <div class="hint">
+          <b>时延约束：</b><code>v = L / Δt</code>，仅当反推速度落在合理区间（示意 0.15–1.0 m/s）时入选。
+          <b>可辨识性：</b>缺测率 &gt; 30% 或源谱不可分辨 → 输出“不可辨识”。<br>
+          <b>区间口径（红队补强）：</b>此处区间为<b>条件置信区间</b>——未传播源解析模型自身的不确定度；仅就当前 3 断面样本而言，<b>不作无条件声称</b>。
+        </div>
+        <div class="panel" style="margin-top:12px;box-shadow:none;background:var(--surface-2)">
+          <h3 style="border:none;padding:0;margin:0 0 9px">证据链（何时—何地—何源）</h3>
+          <div id="s4evi" style="font-size:12.5px;color:var(--sub)"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S5 -->
+  <section class="screen" id="S5">
+    <div class="eyebrow">L3 · ONE-MAP &amp; RESPONSIBILITY GRAPH</div>
+    <h2 class="pg">溯源一张图 + 责任链图谱</h2>
+    <p class="pgsub">上游→下游的<b>示意河道</b>叠加断面与潜在源；责任链图谱的节点—边由 <b>S4 的排序结果驱动</b>，责任方（线索）按贡献度标红深浅。</p>
+    <div class="cols2">
+      <div class="panel">
+        <h3>溯源一张图<em>示意图 · 非真实地理数据</em></h3>
+        <div id="s5map"></div>
+      </div>
+      <div class="panel">
+        <h3>责任链图谱<em>点节点看证据</em></h3>
+        <div id="s5graph"></div>
+        <div class="hint" id="s5evi">点击图谱中的节点查看对应证据。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S6 -->
+  <section class="screen" id="S6">
+    <div class="eyebrow">L3 · EXPLAINABLE AI (ADVISORY LAYER)</div>
+    <h2 class="pg">AI 辅助决策：只做"解释层"，结论由人确认</h2>
+    <p class="pgsub">用 <b>SHAP 归因</b> 给出“排序为何是这样”的解释（预计算演示值）。<b>AI 只给“线索”、人工给“结论”</b>：AI 不参与时间窗、不做因果与责任认定；任何结论须经<b>人工复核留痕</b>后方可采信。</p>
+    <div class="cols2">
+      <div class="panel">
+        <h3>SHAP 归因（对首选候选的贡献解释）<em>演示口径</em></h3>
+        <div id="s6svg"></div>
+        <div class="hint">归因值表示"该特征对把此候选排到前列的贡献方向与大小"，<b>不是污染量、不是责任比例</b>。</div>
+      </div>
+      <div class="panel">
+        <h3>人机协同复核<em>人工留痕</em></h3>
+        <div style="font-size:13px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:12px 14px" id="s6clue"></div>
+        <div class="btnrow">
+          <button class="btn g" data-r="接受">接受</button>
+          <button class="btn r" data-r="驳回">驳回</button>
+          <button class="btn" data-r="存疑">存疑</button>
+        </div>
+        <div class="revlog" id="s6log"><div class="it"><span class="tm">--:--:--</span><span>等待复核…</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S7 -->
+  <section class="screen" id="S7">
+    <div class="eyebrow">L3 · LAW-ENFORCEMENT ASSIST REPORT</div>
+    <h2 class="pg">执法辅助报告：一键生成结构化结论</h2>
+    <p class="pgsub">把上述结果套入固定模板（<b>可信时间戳 + 证据链 + 置信区间 + 边界声明</b>），供调查参考；<b>可打印</b>。</p>
+    <div class="btnrow" style="margin-bottom:15px">
+      <button class="btn p" id="s7build">生成 / 刷新报告</button>
+      <button class="btn" id="s7print">打印</button>
+    </div>
+    <div class="report" id="s7report"></div>
+  </section>
+
+  <!-- S8 · 实景时空溯源（iframe 承载伪3D推演，原版保留） -->
+  <section class="screen" id="S8">
+    <div class="s8wrap">
+      <div class="s8head">
+        <div>
+          <div class="eyebrow">REAL-WORLD REPLAY · 等距伪 3D 推演</div>
+          <h2 class="pg">实景时空溯源：污染团沿河道迁移怎么发生</h2>
+          <p class="pgsub">把前面的「可信底座 + 责任链」放进一条虚拟河道里<b>演给你看</b>——污染团何时进入、沿程断面浓度如何抬升、候选源置信带如何随时间收窄；以及<b>关掉北斗统一时基后，时间窗如何重叠、源为何「不可辨识」</b>。</p>
+        </div>
+        <div class="s8tools">
+          <button class="btn" id="s8open">↗ 新窗口打开（备用）</button>
+        </div>
+      </div>
+      <div class="s8frame">
+        <div class="s8loading" id="s8load">正在载入实景推演模块…</div>
+        <iframe id="s8frame" src="beidou-3d.html" title="实景时空溯源 · 伪3D推演" onload="var l=document.getElementById('s8load');if(l)l.style.display='none';"></iframe>
+      </div>
+      <div class="s8hint">
+        <b>交互提示</b>：点击场景后即可用键盘 —
+        <span class="mono">空格</span> 播放/暂停 ·
+        <span class="mono">1–4</span> 选候选源 ·
+        <span class="mono">A</span> 一键自动演示 ·
+        <span class="mono">Q</span> 你来溯源 ·
+        <span class="mono">D</span> 答辩要点 ·
+        <span class="mono">B</span> 北斗/各自时钟对比 ｜
+        退出本屏按 <span class="mono">←</span> 或 <span class="mono">Home</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="fl">
+    溯源·北斗 演示原型 v2.0 ｜ 单文件离线运行 · 零外部依赖 · 零 API 费用 ｜
+    数据为<b>合成/回放</b>，界面数值仅用于说明"设计目标与实现方式"，<b>非实测结论</b>。
+    地图为自绘示意（非真实地理数据），符合地图合规要求。 ｜ 快捷键：<span class="mono">?</span> 查看全部
+  </div>
+</footer>
+
+<div class="kbd" id="kbd">
+  <h4>放映快捷键</h4>
+  <div class="row"><span>上一屏 / 下一屏</span><span><kbd>←</kbd> <kbd>→</kbd></span></div>
+  <div class="row"><span>跳转到第 N 屏</span><span><kbd>0</kbd>–<kbd>7</kbd></span></div>
+  <div class="row"><span>下一屏（同 →）</span><span><kbd>Space</kbd></span></div>
+  <div class="row"><span>全屏放映</span><span><kbd>F</kbd></span></div>
+  <div class="row"><span>切换浅色 / 深色</span><span><kbd>D</kbd></span></div>
+  <div class="row"><span>打印当前报告</span><span><kbd>P</kbd></span></div>
+  <div class="row"><span>显示 / 隐藏本面板</span><span><kbd>?</kbd></span></div>
+  <div class="tip">提示：正式答辩建议 <b>浅色 + 全屏</b>；投影环境下浅色对比度更稳。</div>
+</div>
+
+<script>
+"use strict";
+/* ============ 数据契约（与 demo-data.json 一致，内嵌以满足单文件离线） ============ */
+const D = {
+  t0:"2026-09-26T08:00:00.000Z",
+  sections:[
+    {id:"SEC-A",name:"上游控制断面",dist:2900},
+    {id:"SEC-B",name:"中游断面",dist:2050},
+    {id:"SEC-C",name:"下游出境断面",dist:850}
+  ],
+  sources:[
+    {id:"SRC-1",name:"农田退水口",kind:"面源",dist:120,spec:"氨氮缓释",base:0.72},
+    {id:"SRC-2",name:"农村生活污水排口",kind:"点源",dist:300,spec:"氨氮+COD",base:0.62},
+    {id:"SRC-3",name:"小型养殖场",kind:"点源",dist:640,spec:"氨氮高值",base:0.80},
+    {id:"SRC-4",name:"支流汇入",kind:"汇入",dist:780,spec:"浊度+氨氮",base:0.40}
+  ],
+  records:[
+    {id:"R1",ts:"2026-09-26T08:00:00.000Z",pos:"N29.0412/E111.6893",sec:"SEC-A",param:"NH3-N",val:0.62,unit:"mg/L"},
+    {id:"R2",ts:"2026-09-26T08:05:00.000Z",pos:"N29.0388/E111.6921",sec:"SEC-B",param:"NH3-N",val:1.83,unit:"mg/L"},
+    {id:"R3",ts:"2026-09-26T08:11:30.000Z",pos:"N29.0350/E111.6958",sec:"SEC-C",param:"NH3-N",val:1.21,unit:"mg/L"}
+  ],
+  shap:[
+    {f:"时延匹配度 L/Δt",w:0.34},
+    {f:"流向约束（上游可达）",w:0.26},
+    {f:"源特征谱相似度",w:0.21},
+    {f:"距离合理性",w:0.12},
+    {f:"历史先验频率",w:0.07}
+  ],
+  grading:{normal:1.0,minor:1.5,moderate:2.5},
+  vmin:0.15, vmax:1.0, missLimit:0.30
+};
+
+/* ============ 调色板（从 CSS 变量读取 → 自动适配深/浅主题） ============ */
+let PAL=null;
+function pal(){
+  if(PAL)return PAL;
+  const cs=getComputedStyle(document.documentElement);
+  const g=n=>cs.getPropertyValue(n).trim();
+  PAL={brand:g("--brand"),brand2:g("--brand-2"),brandInk:g("--brand-ink"),
+    teal:g("--teal"),amber:g("--amber"),violet:g("--violet"),
+    alert:g("--alert"),ok:g("--ok"),mut:g("--mut"),sub:g("--sub"),ink:g("--ink"),
+    line:g("--line"),line2:g("--line-2"),surface:g("--surface"),surface2:g("--surface-2"),surface3:g("--surface-3")};
+  return PAL;
+}
+
+/* ============ 工具 ============ */
+const $=(s,r)=>(r||document).querySelector(s);
+const $$=(s,r)=>Array.from((r||document).querySelectorAll(s));
+function el(tag,attrs,html){const e=document.createElement(tag);if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);if(html!=null)e.innerHTML=html;return e;}
+function sv(tag,attrs){const e=document.createElementNS("http://www.w3.org/2000/svg",tag);if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+function fmtT(iso){const d=new Date(iso);return d.toISOString().replace("T"," ").replace(".000Z","Z");}
+function hm(){const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0");}
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function reduceMotion(){return window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;}
+/* 数值平滑过渡 + 变化闪光 */
+function setNum(node,text,unit){
+  if(!node)return;
+  const nv=String(text), prev=node.dataset.nv;
+  node.textContent=nv+(unit||"");
+  if(prev!==undefined&&prev!==nv){node.classList.remove("flash");void node.offsetWidth;node.classList.add("flash");}
+  node.dataset.nv=nv;
+}
+
+/* ============ 哈希链 ============ */
+function fnv1a(str){let h=0x811c9dc5;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,0x01000193);}return (h>>>0).toString(16).padStart(8,"0");}
+function canon(r){ // 字段定序 + 数值定点化（确定性编码）
+  return ["id="+r.id,"ts="+r.ts,"pos="+r.pos,"sec="+r.sec,"param="+r.param,"val="+(+r.val).toFixed(3),"unit="+r.unit].join("|");
+}
+function fullHash(r){return fnv1a(canon(r))+fnv1a(canon(r)+"#salt");}
+function buildChain(recs){const out=[];let prev=fnv1a("GENESIS::TRACE-BEIDOU::C0");out.push({idx:0,hash:prev,label:"C0 创世块",gen:true});recs.forEach((r,i)=>{const h=fnv1a(prev+"||"+fullHash(r));out.push({idx:i+1,hash:h,label:"C"+(i+1)+" · "+r.id,rec:r});prev=h;});return out;}
+
+/* ============ 导航 ============ */
+const SCREENS=[
+  {id:"S0",k:"00",t:"总览"},
+  {id:"S1",k:"01",t:"可信底座"},
+  {id:"S2",k:"02",t:"同步采样"},
+  {id:"S3",k:"03",t:"分级上报"},
+  {id:"S4",k:"04",t:"责任链回溯"},
+  {id:"S5",k:"05",t:"一张图"},
+  {id:"S6",k:"06",t:"AI 解释层"},
+  {id:"S7",k:"07",t:"辅助报告"},
+  {id:"S8",k:"08",t:"实景推演"}
+];
+let curIdx=0, booted=false;
+function go(id){
+  const idx=SCREENS.findIndex(s=>s.id===id); if(idx<0)return;
+  curIdx=idx;
+  SCREENS.forEach(s=>$("#"+s.id).classList.toggle("on",s.id===id));
+  $$("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.id===id));
+  const sc=$("#"+id);
+  sc.classList.remove("anim-in"); void sc.offsetWidth;
+  Array.from(sc.children).forEach((c,i)=>{c.style.animationDelay=(i*42)+"ms";});
+  sc.classList.add("anim-in");
+  $("#prog").style.width=(idx/(SCREENS.length-1)*100)+"%";
+  $("#counter").textContent=SCREENS[idx].k+" / 0"+(SCREENS.length-1);
+  try{if(location.hash!=="#"+id)history.replaceState(null,"","#"+id);}catch(e){}
+  window.scrollTo({top:0,behavior:(!booted||reduceMotion())?"auto":"smooth"});
+  if(id==="S2"&&s2reveal>=1)renderS2();
+  if(id==="S3")renderS3();
+}
+function initNav(){
+  const n=$("#nav");
+  SCREENS.forEach(s=>{
+    const b=el("button",{"data-id":s.id},'<s>'+s.k+'</s>'+esc(s.t));
+    b.onclick=()=>go(s.id);n.appendChild(b);
+  });
+}
+
+/* ============ S0 流程图 ============ */
+function renderPipe(){
+  const P=pal();
+  const w=960,h=178,ph=$("#pipeSvg");ph.innerHTML="";
+  const s=sv("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:h,style:"display:block"});
+  const stages=[
+    {t:"北斗授时",d:"可信时间基",c:0},
+    {t:"同步采样",d:"多断面 T₀ 触发",c:1},
+    {t:"事件分级上报",d:"阈值→分级→直传/补传",c:2},
+    {t:"责任链回溯",d:"机理筛候选+排序",c:3},
+    {t:"AI 解释",d:"SHAP 归因·人在回路",c:3},
+    {t:"辅助报告",d:"时间戳+证据链",c:3}
+  ];
+  const cols=[P.brand,P.teal,P.amber,P.violet,P.violet,P.violet];
+  const bw=132,gap=(w-40-bw*stages.length)/(stages.length-1);
+  // 渐变定义
+  const defs=sv("defs");
+  stages.forEach((st,i)=>{
+    const gid="pg"+i;
+    const lg=sv("linearGradient",{id:gid,x1:"0",y1:"0",x2:"0",y2:"1"});
+    lg.appendChild(sv("stop",{offset:"0","stop-color":cols[i],"stop-opacity":".14"}));
+    lg.appendChild(sv("stop",{offset:"1","stop-color":cols[i],"stop-opacity":"0"}));
+    defs.appendChild(lg);
+  });
+  const mk=sv("marker",{id:"ar",markerWidth:8,markerHeight:8,refX:6,refY:3,orient:"auto"});
+  mk.appendChild(sv("path",{d:"M0,0 L6,3 L0,6 z",fill:P.mut}));defs.appendChild(mk);
+  s.appendChild(defs);
+  stages.forEach((st,i)=>{
+    const x=20+i*(bw+gap),y=48,bh=76;
+    s.appendChild(sv("rect",{x:x,y:y,width:bw,height:bh,rx:11,fill:P.surface,stroke:P.line,"stroke-width":1.2}));
+    s.appendChild(sv("rect",{x:x,y:y,width:bw,height:bh,rx:11,fill:"url(#pg"+i+")",stroke:"none"}));
+    s.appendChild(sv("rect",{x:x,y:y,width:4,height:bh,rx:2,fill:cols[i]}));
+    const ty=sv("text",{x:x+15,y:y+29,fill:P.ink,"font-size":12.6,"font-weight":700});
+    ty.textContent=st.t;s.appendChild(ty);
+    const td=sv("text",{x:x+15,y:y+50,fill:P.sub,"font-size":10.8});
+    td.textContent=st.d;s.appendChild(td);
+    const n=sv("text",{x:x+bw-12,y:y+bh-11,fill:P.mut,"font-size":10,"text-anchor":"end","font-family":"monospace"});
+    n.textContent="0"+(i+1);s.appendChild(n);
+    if(i<stages.length-1){const ax=x+bw+gap/2,ay=y+bh/2;
+      s.appendChild(sv("path",{d:"M"+(x+bw+4)+" "+ay+" L"+(x+bw+gap-6)+" "+ay,stroke:P.mut,"stroke-width":1.4,"marker-end":"url(#ar)"}));}
+  });
+  const cap=sv("text",{x:20,y:28,fill:P.mut,"font-size":11.5});
+  cap.textContent="可信时空底座（L0）→ 感知上报（L1/L2）→ 回溯解释与输出（L2/L3）";s.appendChild(cap);
+  ph.appendChild(s);
+}
+
+/* ============ S1 ============ */
+let RECS=[];
+function cloneRecs(){return D.records.map(r=>Object.assign({},r));}
+function canonTs(ts){return ts;}
+function renderRecs(){
+  const box=$("#recs");box.innerHTML="";
+  RECS.forEach((r,i)=>{
+    // 只判断"记录自身"是否被改；所在链位置失效由哈希链面板标注
+    const bad=canon(r)!==canon(D.records[i]);
+    const c=el("div",{class:"rec"+(bad?" bad":""),id:"rec-"+r.id});
+    c.appendChild(el("div",{class:"rh"},'<span>'+r.id+' · '+esc(r.sec)+'</span><span class="st">'+(bad?"已篡改 ⚠":"✓ 未改动")+'</span>'));
+    const fields=[["时间",canonTs(r.ts),"ts"],["位置",r.pos,"pos"],["参数",r.param,"param"],["数值",r.val,"val"],["单位",r.unit,"unit"]];
+    fields.forEach(f=>{
+      const row=el("div",{class:"frow"});
+      row.appendChild(el("div",{class:"fk"},f[0]));
+      if(f[2]==="val"){const inp=el("input",{value:r.val,"data-id":r.id,"data-k":"val"});inp.onchange=()=>{RECS[i].val=parseFloat(inp.value)||0;refreshChain();};row.appendChild(inp);}
+      else{row.appendChild(el("div",{class:"fv"},esc(f[1])));}
+      c.appendChild(row);
+    });
+    box.appendChild(c);
+  });
+}
+function renderChain(){
+  const P=pal();
+  const chain=buildChain(RECS);const stored=buildChain(D.records);
+  let firstBad=-1;for(let i=0;i<chain.length;i++){if(chain[i].hash!==stored[i].hash){firstBad=i;break;}}
+  const box=$("#chain");box.innerHTML="";
+  chain.forEach((b,i)=>{
+    const bad=i>=firstBad&&firstBad>=0;
+    const d=el("div",{class:"blk"+(b.gen?" gen":"")+(bad?" bad":""),"data-i":i});
+    d.appendChild(el("div",{class:"bh"},b.label));
+    d.appendChild(el("div",{class:"hv"},b.hash.slice(0,16)+"…"));
+    d.appendChild(el("div",{class:"lb"},b.gen?"公开":(i===firstBad?"首失配 ⚠":(bad?"失效":"✓ 一致"))));
+    box.appendChild(d);
+    if(i<chain.length-1){const a=el("div",{class:"arw"+(bad?" bad":"")},"→");box.appendChild(a);}
+  });
+  const v=$("#verdict");
+  if(firstBad<0){v.className="verdict ok";v.textContent="链完整：全部块哈希一致，未检测到篡改。";}
+  else{v.className="verdict no";v.innerHTML="⚠ 检测到篡改：首个失配块 = <b>"+esc(chain[firstBad].label)+"</b>（其后所有块随之失效）。定位到 "+firstBad+" 号块。";}
+  return firstBad;
+}
+function refreshChain(){renderRecs();renderChain();}
+function playChainScan(){
+  const blks=$$("#chain .blk");
+  if(!blks.length)return;
+  blks.forEach(b=>b.classList.remove("scan"));
+  const step=reduceMotion()?40:190;
+  blks.forEach((b,i)=>{
+    setTimeout(()=>{
+      b.classList.add("scan");
+      setTimeout(()=>b.classList.remove("scan"),step*1.3);
+    },i*step);
+  });
+}
+function initS1(){
+  $("#t0").textContent=fmtT(D.t0);
+  $("#tamperBtn").onclick=()=>{RECS[1].val=0.55;refreshChain();setTimeout(playChainScan,120);};
+  $("#resetBtn").onclick=()=>{RECS=cloneRecs();refreshChain();setTimeout(playChainScan,120);};
+  $("#verifyBtn").onclick=playChainScan;
+  RECS=cloneRecs();refreshChain();
+  renderPipe();
+}
+
+/* ============ S2 ============ */
+let s2mode="w",s2reveal=1;
+function s2ticks(mode){
+  const seed=mode==="w"?20260926:20260927;const rnd=mulberry32(seed);
+  const sigma=mode==="w"?0.8:9.0;
+  return D.sections.map(sec=>{
+    const ticks=[];for(let i=0;i<7;i++){let g=0;for(let k=0;k<4;k++)g+=rnd();g=(g-2)/1.155;ticks.push(g*sigma);}
+    return {sec:sec,ticks:ticks,sigma:sigma};
+  });
+}
+function renderS2(){
+  const P=pal();
+  const w=760,h=256,ph=$("#s2svg");ph.innerHTML="";
+  const s=sv("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:h,style:"display:block"});
+  const L=140,R=w-82,span=15;
+  const x=t=>L+(t+span)/(2*span)*(R-L);
+  // 目标带 ±1ms
+  s.appendChild(sv("rect",{x:x(-1),y:36,width:x(1)-x(-1),height:182,fill:P.ok,opacity:".10"}));
+  s.appendChild(sv("line",{x1:x(-1),y1:30,x2:x(-1),y2:218,stroke:P.ok,"stroke-width":1,"stroke-dasharray":"3 3",opacity:".5"}));
+  s.appendChild(sv("line",{x1:x(1),y1:30,x2:x(1),y2:218,stroke:P.ok,"stroke-width":1,"stroke-dasharray":"3 3",opacity:".5"}));
+  s.appendChild(sv("line",{x1:x(0),y1:24,x2:x(0),y2:218,stroke:P.teal,"stroke-width":1.7,"stroke-dasharray":"5 3"}));
+  const lb=sv("text",{x:x(0),y:18,fill:P.teal,"font-size":11,"text-anchor":"middle","font-weight":700});lb.textContent="T₀ 统一触发";s.appendChild(lb);
+  const note=sv("text",{x:x(0),y:236,fill:P.mut,"font-size":10.5,"text-anchor":"middle"});note.textContent="±1 ms 设计目标带（横向为时间偏差，已放大）";s.appendChild(note);
+  const data=s2ticks(s2mode);
+  const lanes=[76,132,188];
+  data.forEach((row,i)=>{
+    const y=lanes[i];
+    const nm=sv("text",{x:12,y:y+4,fill:P.ink,"font-size":12,"font-weight":700});nm.textContent=row.sec.id;s.appendChild(nm);
+    const nm2=sv("text",{x:12,y:y+20,fill:P.mut,"font-size":10});nm2.textContent=row.sec.name;s.appendChild(nm2);
+    s.appendChild(sv("line",{x1:L,y1:y,x2:R,y2:y,stroke:P.line2,"stroke-width":1}));
+    const n=Math.round(row.ticks.length*s2reveal);
+    row.ticks.slice(0,n).forEach(t=>{
+      const cx=x(t),inside=Math.abs(t)<=1;
+      s.appendChild(sv("line",{x1:cx,y1:y-10,x2:cx,y2:y+10,stroke:inside?P.teal:P.amber,"stroke-width":inside?2.2:1.4,"opacity":inside?1:.8}));
+      s.appendChild(sv("circle",{cx:cx,cy:y,r:2.6,fill:inside?P.teal:P.amber}));
+    });
+    const dev=row.ticks.reduce((a,b)=>Math.abs(a)>Math.abs(b)?a:b);
+    const dt=sv("text",{x:R+7,y:y+4,fill:P.mut,"font-size":10.5,"font-family":"monospace"});dt.textContent="max|Δ|≈"+Math.abs(dev).toFixed(1);s.appendChild(dt);
+  });
+  if(s2reveal<1){const cx=x(-span+s2reveal*2*span);
+    s.appendChild(sv("line",{x1:cx,y1:26,x2:cx,y2:216,stroke:P.brand,"stroke-width":1.2,opacity:".55"}));}
+  ph.appendChild(s);
+  const withB=s2mode==="w";
+  $("#s2mode").textContent=(withB?"有授时 · σ≈0.8 ms":"无授时 · σ≈9 ms");
+  const mx=Math.max.apply(null,data.map(r=>Math.max.apply(null,r.ticks.map(Math.abs))));
+  const rowEl=(k,v,cls)=>{
+    const li=el("li");
+    li.appendChild(el("div",null,esc(k)));
+    const sp=el("div",{class:"v "+(cls||"")});sp.textContent=v;
+    li.appendChild(sp);return li;
+  };
+  const box=$("#s2stat");box.innerHTML="";
+  box.appendChild(rowEl("参考时刻",fmtT(D.t0).slice(11,23)));
+  box.appendChild(rowEl("授时方案",withB?"北斗 B1I 授时":"本地晶振（无授时）"));
+  const r3=rowEl("断面最大偏差 max|Δ|","≈"+mx.toFixed(1)+" ms",withB?"ok":"bad");
+  const r3v=r3.querySelector(".v");r3v.dataset.nv="≈"+mx.toFixed(1);
+  const r4=rowEl("是否落在 ±1 ms 目标带",withB?"满足（设计目标）":"多数越界",withB?"ok":"bad");
+  const r4v=r4.querySelector(".v");r4v.dataset.nv=(withB?"满足":"越界");
+  box.appendChild(r3);box.appendChild(r4);
+  $$("#s2stat li").forEach((li,i)=>{li.style.animation="riseIn .4s var(--ease) both";li.style.animationDelay=(i*55)+"ms";});
+  $("#s2note").innerHTML=withB
+    ? "有北斗授时 → 各断面偏差小，<b>断面间 Δt 可信</b>，<code>v=L/Δt</code> 可用。"
+    : "<b>无授时 → 偏差可达数毫秒~数十毫秒</b>，Δt 被时钟误差污染，<b>迁移时间窗不可靠</b>。这正是需要统一可信时间基的原因。";
+}
+function initS2(){
+  $$("#s2seg button").forEach(b=>b.onclick=()=>{s2mode=b.dataset.m;$$("#s2seg button").forEach(x=>x.classList.toggle("on",x===b));s2reveal=1;renderS2();});
+  $("#s2play").onclick=()=>{
+    s2reveal=0;
+    if(reduceMotion()){s2reveal=1;renderS2();return;}
+    const t0=performance.now();
+    (function step(){const k=Math.min(1,(performance.now()-t0)/1250);s2reveal=k*k*(3-2*k);renderS2();if(k<1)requestAnimationFrame(step);})();
+  };
+  $("#s2reset").onclick=()=>{s2reveal=1;renderS2();};
+  renderS2();
+}
+
+/* ============ S3 ============ */
+let s3net="online";
+function s3series(){
+  const x=[],y=[];const n=48;
+  for(let i=0;i<n;i++){const t=i/(n-1);
+    let v=0.55+0.15*Math.sin(i*0.6)+0.05*Math.sin(i*2.1);
+    v+=2.1*Math.exp(-Math.pow((t-0.52)/0.08,2));
+    v+=0.5*Math.exp(-Math.pow((t-0.72)/0.10,2));
+    x.push(t*360);y.push(Math.max(0.3,v));
+  }
+  return {x:x,y:y};
+}
+function gradeOf(v){const g=D.grading;const P=pal();
+  if(v<g.normal)return{n:"正常",c:P.teal};
+  if(v<g.minor)return{n:"一般",c:"#c99a3a"};
+  if(v<g.moderate)return{n:"较重",c:"#b35a2a"};
+  return{n:"严重",c:P.alert};}
+function renderS3(){
+  const P=pal();
+  const dat=s3series();const w=760,h=286,ph=$("#s3svg");ph.innerHTML="";
+  const s=sv("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:h,style:"display:block"});
+  const L=52,R=w-16,T=18,B=h-36,ymax=3.2;
+  const X=t=>L+t/360*(R-L),Y=v=>B-v/ymax*(B-T);
+  const defs=sv("defs");
+  const cg=sv("clipPath",{id:"s3clip"});
+  const cr=sv("rect",{x:L-2,y:0,width:R-L+4,height:h,class:"wipe"});
+  cg.appendChild(cr);defs.appendChild(cg);
+  const ag=sv("linearGradient",{id:"s3area",x1:"0",y1:"0",x2:"0",y2:"1"});
+  ag.appendChild(sv("stop",{offset:"0","stop-color":P.alert,"stop-opacity":".22"}));
+  ag.appendChild(sv("stop",{offset:"1","stop-color":P.alert,"stop-opacity":"0"}));
+  defs.appendChild(ag);s.appendChild(defs);
+  [0,1,1.5,2.5,3].forEach(g=>{
+    const yy=Y(g);const isL=[1,1.5,2.5].indexOf(g)>=0;
+    s.appendChild(sv("line",{x1:L,y1:yy,x2:R,y2:yy,stroke:isL?P.line:P.line2,"stroke-width":1,"stroke-dasharray":isL?"4 4":"0"}));
+    const t=sv("text",{x:L-6,y:yy+3,fill:P.mut,"font-size":10,"text-anchor":"end","font-family":"monospace"});t.textContent=g.toFixed(1);s.appendChild(t);
+  });
+  const yl=sv("text",{x:12,y:T+8,fill:P.mut,"font-size":10.5});yl.textContent="mg/L";s.appendChild(yl);
+  const gw=sv("g",{"clip-path":"url(#s3clip)"});
+  // 面积
+  let ad="M"+X(dat.x[0])+" "+B;
+  dat.x.forEach((xx,i)=>{ad+=" L"+X(xx).toFixed(1)+" "+Y(dat.y[i]).toFixed(1);});
+  ad+=" L"+X(dat.x[dat.x.length-1])+" "+B+" Z";
+  gw.appendChild(sv("path",{d:ad,fill:"url(#s3area)",stroke:"none"}));
+  // 折线（按分级着色）
+  for(let i=1;i<dat.x.length;i++){const g=gradeOf(dat.y[i]);
+    gw.appendChild(sv("line",{x1:X(dat.x[i-1]),y1:Y(dat.y[i-1]),x2:X(dat.x[i]),y2:Y(dat.y[i]),stroke:g.c,"stroke-width":2.8,"stroke-linecap":"round"}));}
+  let pi=0;dat.y.forEach((v,i)=>{if(v>dat.y[pi])pi=i;});
+  gw.appendChild(sv("circle",{cx:X(dat.x[pi]),cy:Y(dat.y[pi]),r:4.5,fill:P.alert}));
+  const pk=sv("text",{x:X(dat.x[pi])+8,y:Y(dat.y[pi])-7,fill:P.alert,"font-size":11,"font-weight":700});
+  pk.textContent="峰值 "+dat.y[pi].toFixed(2)+" mg/L";gw.appendChild(pk);
+  s.appendChild(gw);
+  s.appendChild(sv("line",{x1:L,y1:B,x2:R,y2:B,stroke:P.line}));
+  [0,60,120,180,240,300,360].forEach(m=>{const xx=X(m);const t=sv("text",{x:xx,y:B+16,fill:P.mut,"font-size":10,"text-anchor":"middle","font-family":"monospace"});t.textContent=m+"s";s.appendChild(t);});
+  ph.appendChild(s);
+  const peak=dat.y[pi],g=gradeOf(peak);
+  const grade=g.n;
+  const blind=s3net==="blind";
+  $("#s3evt").innerHTML=
+    '<li><span>触发阈值</span><span class="v">1.00 mg/L（Ⅲ类）</span></li>'+
+    '<li><span>峰值</span><span class="v" style="color:'+g.c+';font-weight:700">'+peak.toFixed(2)+' mg/L</span></li>'+
+    '<li><span>事件分级</span><span class="v" style="color:'+g.c+';font-weight:700">'+grade+'</span></li>'+
+    '<li><span>上报方式</span><span class="v">'+(blind?"北斗短报文 · 摘要先行":"公网 · 直传")+'</span></li>'+
+    '<li><span>数据完整</span><span class="v '+(blind?"bad":"ok")+'">'+(blind?"摘要已发 · 明细待补传":"全量已上传")+'</span></li>';
+  $("#s3note").innerHTML=blind
+    ? "<b>盲区策略：</b>先发<b>北斗短报文摘要</b>（北斗短报文，<b>非普通短信</b>；断面码 + 时间 + 峰值摘要，约数十字），<b>保证“事件不漏”</b>；复网后按序<b>补传明细</b>。体现“摘要先行、明细补传”。"
+    : "<b>有网策略：</b>公网<b>直传</b>，明细与摘要一并上传，链上即时存证。";
+}
+function initS3(){
+  $$("#s3seg button").forEach(b=>b.onclick=()=>{s3net=b.dataset.n;$$("#s3seg button").forEach(x=>x.classList.toggle("on",x===b));renderS3();});
+  renderS3();
+}
+
+/* ============ S4 ============ */
+let s4dt=390,s4miss=8;
+function computeS4(){
+  const dt=s4dt, miss=s4miss/100;
+  const cands=D.sources.map(src=>{
+    const v=src.dist/dt;
+    const pass=v>=D.vmin&&v<=D.vmax;
+    const timeScore=Math.exp(-Math.pow((v-0.45)/0.28,2));
+    const specScore=src.spec.indexOf("氨氮")>=0?1:(src.spec.indexOf("汇入")>=0?0.6:0.5);
+    const raw=pass?src.base*0.5+timeScore*0.35+specScore*0.15:0;
+    return {src:src,v:v,pass:pass,raw:raw,timeScore:timeScore,specScore:specScore};
+  });
+  const pass=cands.filter(c=>c.pass);
+  const sum=pass.reduce((a,c)=>a+c.raw,0)||1;
+  cands.forEach(c=>{c.contrib=c.pass?c.raw/sum:0;});
+  const identifiable = miss<=D.missLimit && pass.length>=1;
+  return {cands:cands,pass:pass,identifiable:identifiable,miss:miss,dt:dt};
+}
+function renderS4(){
+  const P=pal();
+  const R=computeS4();
+  setNum($("#s4dtv"),s4dt," s");
+  setNum($("#s4missv"),s4miss," %");
+  $("#s4n").textContent=R.identifiable?("首选 "+R.pass.length+" 候选"):"不可辨识";
+  const box=$("#s4list");box.innerHTML="";
+  const sorted=R.cands.slice().sort((a,b)=>b.contrib-a.contrib);
+  if(!R.identifiable){
+    box.innerHTML='<div class="nr"><b>不可辨识</b>'+(R.miss>D.missLimit?"缺测率 "+(R.miss*100).toFixed(0)+"% 已超过阈值 30%":"无候选通过机理约束")+"<br>系统<b>不输出任何贡献权重</b>，避免给出误导性排序。</div>";
+  }else{
+    sorted.forEach((c,i)=>{
+      if(!c.pass)return;
+      const pc=(c.contrib*100);const ci=[Math.max(0,pc-6),Math.min(100,pc+6)];
+      const col=i===0?P.violet:P.brand;
+      const d=el("div",{class:"contrib"+(i===0?" top":"")});
+      d.innerHTML='<div class="ct"><span class="nm">'+esc(c.src.name)+' <span class="badge pass">'+esc(c.src.kind)+'</span></span><span class="pc">'+pc.toFixed(1)+'%</span></div>'+
+        '<div class="bar"><i style="background:linear-gradient(90deg,'+col+','+col+'cc)"></i></div>'+
+        '<div class="ci">置信区间 90%：'+ci[0].toFixed(1)+'% – '+ci[1].toFixed(1)+'% ｜ 反推 v = L/Δt = '+c.v.toFixed(2)+' m/s</div>';
+      box.appendChild(d);
+      const bar=d.querySelector(".bar>i");
+      setTimeout(()=>{bar.style.width=pc.toFixed(1)+"%";},30+i*70);
+    });
+    const out=sorted.filter(c=>!c.pass);
+    if(out.length){const d=el("div",{style:"font-size:12px;color:var(--mut);margin-top:8px"});
+      d.innerHTML="<b>被机理约束排除：</b>"+out.map(c=>esc(c.src.name)+"（v="+c.v.toFixed(2)+" m/s 越界）").join("、")+"。";
+      box.appendChild(d);}
+  }
+  const v=$("#s4verdict");
+  if(!R.identifiable){v.className="verdict no";v.innerHTML="⚠ 当前条件<b>不可辨识</b>：只给结论方向，不给贡献权重（诚实边界）。";}
+  else{v.className="verdict ok";v.innerHTML="✓ 可辨识：首选候选为 <b>"+esc(sorted.filter(c=>c.pass)[0].src.name)+"</b>，贡献度 "+((sorted.filter(c=>c.pass)[0].contrib*100).toFixed(1))+"%（统计线索，非定责）。";}
+  const top=R.identifiable?sorted.filter(c=>c.pass)[0]:null;
+  const tEvt=new Date(new Date(D.t0).getTime()+s4dt*1000);
+  $("#s4evi").innerHTML=
+    "<b>何时：</b>峰值到达 中游断面 于 <code>"+fmtT(tEvt.toISOString()).slice(11,23)+"</code>（T₀ + Δt）<br>"+
+    "<b>何地：</b>SEC-B（中游断面，距河口 2050 m）<br>"+
+    "<b>何源：</b>"+(top?("<b>"+esc(top.src.name)+"</b>（"+(top.contrib*100).toFixed(1)+"% 线索排序）"):"<span style='color:var(--alert)'>不可辨识（不输出）</span>")+"<br>"+
+    "<b>约束：</b>流向（仅上游可达）＋时延（v = L/Δt ∈ [0.15,1.0] m/s）。";
+  return R;
+}
+function initS4(){
+  $("#s4dt").oninput=e=>{s4dt=+e.target.value;renderS4();renderS5();};
+  $("#s4miss").oninput=e=>{s4miss=+e.target.value;renderS4();renderS6();};
+  renderS4();
+}
+
+/* ============ S5 ============ */
+let s5sel=null;
+function renderS5(){
+  const P=pal();
+  const w=560,h=380,ph=$("#s5map");ph.innerHTML="";
+  const R=computeS4();
+  const s=sv("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:h,style:"display:block"});
+  const path="M70 70 C 170 96, 200 150, 300 178 C 400 206, 430 250, 500 322";
+  s.appendChild(sv("path",{d:path,fill:"none",stroke:P.line,opacity:".8","stroke-width":16,"stroke-linecap":"round"}));
+  s.appendChild(sv("path",{d:path,fill:"none",stroke:P.surface2,"stroke-width":11,"stroke-linecap":"round"}));
+  s.appendChild(sv("path",{d:path,fill:"none",stroke:P.brand,"stroke-width":1.3,"stroke-dasharray":"7 6",opacity:".65"}));
+  const defs=sv("defs");
+  const af=sv("marker",{id:"flow",markerWidth:7,markerHeight:7,refX:5,refY:3,orient:"auto"});
+  af.appendChild(sv("path",{d:"M0,0 L6,3 L0,6 z",fill:P.brand}));defs.appendChild(af);s.appendChild(defs);
+  const arr=sv("text",{x:150,y:56,fill:P.brand,"font-size":11,"font-weight":700});arr.textContent="水流方向 ↓（上游 → 下游）";s.appendChild(arr);
+  const secPos={"SEC-A":[126,86],"SEC-B":[300,178],"SEC-C":[500,322]};
+  D.sections.forEach(sec=>{const p=secPos[sec.id];
+    s.appendChild(sv("circle",{cx:p[0],cy:p[1],r:6.5,fill:P.surface,stroke:P.brand,"stroke-width":2.4}));
+    s.appendChild(sv("circle",{cx:p[0],cy:p[1],r:2.6,fill:P.brand}));
+    const t=sv("text",{x:p[0]+11,y:p[1]+4,fill:P.ink,"font-size":11.5,"font-weight":700});t.textContent=sec.id;s.appendChild(t);});
+  const srcPos={"SRC-1":[92,140],"SRC-2":[172,120],"SRC-3":[232,232],"SRC-4":[392,262]};
+  const top=R.identifiable?R.pass.slice().sort((a,b)=>b.contrib-a.contrib)[0]:null;
+  R.cands.forEach(c=>{
+    const p=srcPos[c.src.id];
+    const isTop=top&&top.src.id===c.src.id&&c.pass;
+    const dim=!c.pass;
+    const col=isTop?P.alert:dim?P.mut:P.amber;
+    s.appendChild(sv("line",{x1:p[0],y1:p[1],x2:(secPos["SEC-B"][0]),y2:(secPos["SEC-B"][1]),stroke:dim?P.line2:"#d9b8be","stroke-width":dim?1:1.7,"stroke-dasharray":dim?"3 3":"0"}));
+    s.appendChild(sv("rect",{x:p[0]-8,y:p[1]-8,width:16,height:16,rx:4.5,fill:col,opacity:dim?".55":"1"}));
+    const t=sv("text",{x:p[0]+13,y:p[1]+4,fill:dim?P.mut:P.ink,"font-size":10.8,"font-weight":isTop?700:400});
+    t.textContent=c.src.name+(isTop?"（首选·线索）":"");s.appendChild(t);
+    if(c.pass&&!dim){const pct=sv("text",{x:p[0]+13,y:p[1]+17,fill:isTop?P.alert:P.mut,"font-size":10,"font-family":"monospace"});pct.textContent=(c.contrib*100).toFixed(1)+"%";s.appendChild(pct);}
+  });
+  const mm=sv("text",{x:12,y:h-8,fill:P.mut,"font-size":10.5});mm.textContent="※ 示意图，非真实地理数据（河流走向、距离均为演示设定）";s.appendChild(mm);
+  ph.appendChild(s);
+
+  // 责任链图谱
+  const gw=520,gh=300,gp=$("#s5graph");gp.innerHTML="";
+  const g=sv("svg",{viewBox:"0 0 "+gw+" "+gh,width:"100%",height:gh,style:"display:block"});
+  const center={x:gw/2,y:96};
+  const node={x:gw/2,y:232};
+  g.appendChild(sv("rect",{x:center.x-72,y:center.y-27,width:144,height:54,rx:12,fill:P.brand,opacity:".09",stroke:P.brand,"stroke-width":1.6}));
+  const ct=sv("text",{x:center.x,y:center.y-4,fill:P.brand,"font-size":12.5,"font-weight":700,"text-anchor":"middle"});ct.textContent="污染事件";g.appendChild(ct);
+  const ct2=sv("text",{x:center.x,y:center.y+14,fill:P.mut,"font-size":10,"text-anchor":"middle","font-family":"monospace"});ct2.textContent="SEC-B 峰值 1.83";g.appendChild(ct2);
+  const sorted=R.cands.filter(c=>c.pass).sort((a,b)=>b.contrib-a.contrib);
+  const shown=sorted.length?sorted:R.cands.slice(0,3);
+  shown.forEach((c,i)=>{
+    const n=shown.length;const sx=60+i*((gw-120)/Math.max(1,n-1));
+    const y=node.y;
+    const col=(i===0)?P.alert:P.brand;
+    g.appendChild(sv("line",{x1:center.x,y1:center.y+27,x2:sx,y2:y-23,stroke:(i===0)?"#dbb9bf":P.line,"stroke-width":(i===0)?2.2:1.2}));
+    const grp=sv("g",{class:"node"});
+    const rc=sv("rect",{class:"shape",x:sx-44,y:y-23,width:88,height:48,rx:10,fill:P.surface,stroke:col,"stroke-width":(i===0)?2:1.2});
+    grp.appendChild(rc);
+    const t1=sv("text",{x:sx,y:y-4,fill:P.ink,"font-size":11,"font-weight":700,"text-anchor":"middle"});t1.textContent=c.src.name.slice(0,6);grp.appendChild(t1);
+    const t2=sv("text",{x:sx,y:y+13,fill:col,"font-size":10.5,"text-anchor":"middle","font-family":"monospace"});t2.textContent=(c.contrib*100).toFixed(1)+"%";grp.appendChild(t2);
+    grp.addEventListener("click",()=>{
+      s5sel=c;
+      $$("#s5graph .node rect.shape").forEach(r=>r.setAttribute("stroke-width","1.2"));
+      rc.setAttribute("stroke-width","2.6");
+      $("#s5evi").innerHTML="<b>"+esc(c.src.name)+"</b>（"+esc(c.src.kind)+"）：反推 v="+c.v.toFixed(2)+" m/s，贡献度线索 "+(c.contrib*100).toFixed(1)+"%。来源：机理约束下 SEC-B 峰值的可达源。";
+    });
+    g.appendChild(grp);
+  });
+  gp.appendChild(g);
+  $("#s5evi").textContent="点击图谱中的节点查看对应证据。";
+}
+function initS5(){ renderS5(); }
+
+/* ============ S6 ============ */
+let s6log=[];
+function renderS6(){
+  const P=pal();
+  const R=computeS4();
+  const top=R.identifiable?R.pass.slice().sort((a,b)=>b.contrib-a.contrib)[0]:null;
+  const w=560,h=250,ph=$("#s6svg");ph.innerHTML="";
+  const s=sv("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:h,style:"display:block"});
+  const L=170,Rg=w-60;const maxW=D.shap.reduce((a,x)=>a+x.w,0);
+  const defs=sv("defs");
+  D.shap.forEach((x,i)=>{
+    const gid="sh"+i;
+    const lg=sv("linearGradient",{id:gid,x1:"0",y1:"0",x2:"1",y2:"0"});
+    lg.appendChild(sv("stop",{offset:"0","stop-color":i===0?P.violet:P.brand,"stop-opacity":".85"}));
+    lg.appendChild(sv("stop",{offset:"1","stop-color":i===0?P.violet:P.brand,"stop-opacity":".55"}));
+    defs.appendChild(lg);
+  });
+  s.appendChild(defs);
+  D.shap.forEach((x,i)=>{
+    const y=32+i*40;const wdt=(Rg-L)*x.w/maxW;
+    const t=sv("text",{x:L-10,y:y+4,fill:P.ink,"font-size":11.5,"text-anchor":"end"});t.textContent=x.f;s.appendChild(t);
+    s.appendChild(sv("rect",{x:L,y:y-8,width:(Rg-L),height:16,rx:5,fill:P.surface3}));
+    const b=sv("rect",{x:L,y:y-8,width:0,height:16,rx:5,fill:"url(#sh"+i+")",class:"grow"});
+    b.setAttribute("data-w",wdt.toFixed(1));
+    b.style.transition="width .7s var(--ease)";
+    s.appendChild(b);
+    const v=sv("text",{x:L+wdt+7,y:y+4,fill:P.mut,"font-size":10.5,"font-family":"monospace"});v.textContent=(x.w/maxW).toFixed(2);s.appendChild(v);
+  });
+  s.appendChild(sv("line",{x1:L,y1:24,x2:L,y2:32+D.shap.length*40-30,stroke:P.line}));
+  ph.appendChild(s);
+  if(!reduceMotion()){
+    setTimeout(()=>{$$("#s6svg .grow").forEach((b,i)=>{setTimeout(()=>{b.setAttribute("width",b.getAttribute("data-w"));},i*70);});},40);
+  }else{
+    $$("#s6svg .grow").forEach(b=>b.setAttribute("width",b.getAttribute("data-w")));
+  }
+  $("#s6clue").innerHTML= top
+    ? "<b>AI 线索（需人工确认）：</b>在当前证据下，<b>"+esc(top.src.name)+"</b> 的时延匹配度与流向约束最吻合，建议列为<b>优先核查对象</b>。<br><span style='color:var(--mut);font-size:12px'>※ AI 不参与时间窗、不做因果与责任认定；输出仅供参考的“线索”。</span>"
+    : "<b>AI 线索：</b>当前样本缺测偏高，<b>不给出排序</b>，建议补充采样后再评估。";
+  renderS6log();
+}
+function renderS6log(){
+  const box=$("#s6log");
+  if(!s6log.length){box.innerHTML='<div class="it"><span class="tm">--:--:--</span><span>等待复核…</span></div>';return;}
+  box.innerHTML=s6log.map((l,i)=>'<div class="it'+(i===0&&l._n?" new":"")+'"><span class="tm">'+l.t+'</span><span>'+esc(l.msg)+'</span></div>').join("");
+  s6log.forEach(l=>{delete l._n;});
+}
+function initS6(){
+  $$("#S6 .btn[data-r]").forEach(b=>b.onclick=()=>{const r=b.dataset.r;
+    s6log.unshift({t:hm(),msg:"人工复核："+r+" AI 线索"+(r==="接受"?" → 进入辅助报告":(r==="驳回"?" → 标记无效，需重新采样":" → 挂起，待补充证据")),_n:1});
+    if(s6log.length>6)s6log.pop();renderS6log();toast("已记录复核结论 · "+r);});
+  renderS6();
+}
+
+/* ============ S7 ============ */
+function buildReport(){
+  const R=computeS4();const top=R.identifiable?R.pass.slice().sort((a,b)=>b.contrib-a.contrib)[0]:null;
+  const tEvt=new Date(new Date(D.t0).getTime()+s4dt*1000);
+  const rows=[
+    ["可信时间戳（UTC）", fmtT(D.t0)],
+    ["触发参考时刻 T₀", fmtT(D.t0)],
+    ["峰值到达断面", "SEC-B（中游断面）"],
+    ["峰值到达时刻", fmtT(tEvt.toISOString())],
+    ["指标 / 峰值", "NH3-N / 1.83 mg/L（Ⅲ类阈值 1.00）"],
+    ["事件分级", "较重"],
+    ["线索排序（首选）", top?esc(top.src.name)+" · "+(top.contrib*100).toFixed(1)+"%" : "不可辨识（未输出）"],
+    ["置信区间（90%）", top?("±6% 区间，"+(Math.max(0,top.contrib*100-6)).toFixed(1)+"%–"+Math.min(100,top.contrib*100+6).toFixed(1)+"%"):"—"],
+    ["机理约束", "流向（上游可达）＋时延 v=L/Δt ∈ [0.15,1.0] m/s"],
+    ["数据完整性", "缺测率 "+(s4miss)+"%"+(s4miss>30?"（超阈值→不可辨识）":"（可辨识）")]
+  ];
+  const r=$("#s7report");
+  r.innerHTML=
+    "<h4>执法辅助线索报告（演示）</h4>"+
+    '<div class="rh">生成于 2026-09-26 ｜ 本报告为演示原型输出，模拟数据 · 非实测结论</div>'+
+    "<h5>一、事件概要</h5><p>中游断面（SEC-B）氨氮浓度峰值 1.83 mg/L，超过地表水Ⅲ类标准（1.00 mg/L），事件分级为<b>较重</b>。系统在<b>同一可信时间基</b>下记录并完成链上存证。</p>"+
+    "<h5>二、关键字段</h5><table class='dt'><tbody>"+rows.map(x=>"<tr><th>"+x[0]+"</th><td"+(x[0].indexOf("%")>=0||x[0].indexOf("时刻")>=0?" class='num'":"")+">"+x[1]+"</td></tr>").join("")+"</tbody></table>"+
+    "<h5>三、证据链（何时—何地—何源）</h5><p><b>何时：</b>"+fmtT(tEvt.toISOString())+"（T₀ + Δt="+s4dt+" s）；<b>何地：</b>SEC-B；<b>何源（线索）：</b>"+(top?esc(top.src.name):"不可辨识")+"。</p>"+
+    "<h5>四、AI 辅助说明</h5><p>可解释 AI（SHAP 归因）用于解释“排序为何如此”，<b>不参与时间窗、不做因果与责任认定</b>；AI 输出经<b>人工复核</b>后计入本报告。</p>"+
+    '<div class="dec"><b>边界声明（必读）：</b>本报告为执法调查的<b>"线索排序与时间窗参考"，非直接证据</b>；贡献度为统计意义上的相对排序，<b>不构成对任何主体的责任认定</b>。正式采信须依证据法履行<b>证据保管链</b>，由<b>具备资质的实验室</b>按 HJ 91.1 / HJ 91.2 采样分析。演示数值为合成/回放，用于方案说明。</div>';
+  r.classList.remove("gen");void r.offsetWidth;
+  Array.from(r.children).forEach((c,i)=>{c.style.animationDelay=(i*38)+"ms";});
+  r.classList.add("gen");toast("辅助报告已生成");
+}
+function initS7(){
+  $("#s7build").onclick=buildReport;
+  $("#s7print").onclick=()=>window.print();
+  buildReport();
+}
+
+/* ============ 主题 / 全屏 / 快捷键 ============ */
+function isDark(){return document.documentElement.getAttribute("data-theme")==="dark";}
+function applyTheme(dark){
+  if(dark)document.documentElement.setAttribute("data-theme","dark");
+  else document.documentElement.removeAttribute("data-theme");
+  try{localStorage.setItem("tb_theme",dark?"dark":"light");}catch(e){}
+  PAL=null;
+  renderPipe();renderRecs();renderChain();renderS2();renderS3();renderS4();renderS5();renderS6();
+  const c=$("#s6clue");if(c&&s6log.length)renderS6log();
+}
+function toggleTheme(){applyTheme(!isDark());toast(document.documentElement.getAttribute("data-theme")==="dark"?"已切换深色主题":"已切换浅色主题");}
+function toast(msg,kind){try{var w=document.getElementById("toast");if(!w)return;var d=document.createElement("div");d.className="toast"+(kind?" "+kind:"");d.textContent=msg;w.appendChild(d);requestAnimationFrame(function(){d.classList.add("show");});setTimeout(function(){d.classList.remove("show");setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},320);},2200);}catch(e){}}
+function toggleFull(){
+  const d=document;
+  if(!d.fullscreenElement&&!d.webkitFullscreenElement){
+    const e=d.documentElement;
+    (e.requestFullscreen||e.webkitRequestFullscreen||function(){}).call(e);
+  }else{(d.exitFullscreen||d.webkitExitFullscreen||function(){}).call(d);}
+}
+function toggleKeys(){ $("#kbd").classList.toggle("on"); }
+function initGlobal(){
+  $("#btnTheme").onclick=toggleTheme;
+  $("#btnFull").onclick=toggleFull;
+  $("#btnKeys").onclick=toggleKeys;
+  $("#enterBtn").onclick=()=>go("S1");
+  document.addEventListener("keydown",e=>{
+    const t=e.target;
+    if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.isContentEditable))return;
+    const k=e.key;
+    const onScene=(curIdx===SCREENS.length-1)&&SCREENS[curIdx].id==="S8";
+    if(onScene&&!(k==="ArrowLeft"||k==="ArrowUp"||k==="PageUp"||k==="Home"||k==="Escape")){return;}
+    if(k>="0"&&k<="8"){e.preventDefault();go(SCREENS[+k].id);return;}
+    if(k==="ArrowRight"||k==="ArrowDown"||k===" "||k==="PageDown"){e.preventDefault();go(SCREENS[Math.min(SCREENS.length-1,curIdx+1)].id);return;}
+    if(k==="ArrowLeft"||k==="ArrowUp"||k==="PageUp"){e.preventDefault();go(SCREENS[Math.max(0,curIdx-1)].id);return;}
+    if(k==="Home"){e.preventDefault();go(SCREENS[0].id);return;}
+    if(k==="End"){e.preventDefault();go(SCREENS[SCREENS.length-1].id);return;}
+    if(k==="f"||k==="F"){e.preventDefault();toggleFull();return;}
+    if(k==="d"||k==="D"){e.preventDefault();toggleTheme();return;}
+    if(k==="p"||k==="P"){e.preventDefault();window.print();return;}
+    if(k==="?"||k==="/"){e.preventDefault();toggleKeys();return;}
+    if(k==="Escape"){$("#kbd").classList.remove("on");}
+  });
+  /* S8 实景屏：iframe 载入兜底（即便 load 事件错过也隐藏载入提示） + 新窗口打开备用 */
+  const s8l=$("#s8load"); if(s8l){ setTimeout(function(){ if(s8l)s8l.style.display="none"; },2600); }
+  const s8o=$("#s8open"); if(s8o){ s8o.onclick=function(){ try{window.open("beidou-3d.html","_blank","noopener");}catch(e){location.href="beidou-3d.html";} }; }
+}
+
+/* ============ 启动 ============ */
+function init(){
+  initNav();initS1();initS2();initS3();initS4();initS5();initS6();initS7();
+  initGlobal();
+  const h=(location.hash||"").replace("#","");
+  go(SCREENS.some(s=>s.id===h)?h:"S0");
+  // 抵消浏览器对 URL 锚点的自动滚动，避免 hero 被吸顶导航遮住
+  const settle=()=>{window.scrollTo({top:0,behavior:"auto"});booted=true;};
+  if(document.readyState==="complete")settle();else window.addEventListener("load",settle);
+}
+document.addEventListener("DOMContentLoaded",init);
+</script>
+<div id="toast" class="toastwrap" aria-live="polite"></div>
+
+<button class="copyfab" id="copyFab" title="复制本页网址：粘贴到手机浏览器即可打开">📋 复制网址</button>
+<script>
+(function(){
+  window.addEventListener('DOMContentLoaded',function(){
+    var fab=document.getElementById('copyFab');
+    if(!fab)return;
+    fab.addEventListener('click',function(){
+      var u=location.href;
+      function ok(){if(window.toast)toast('网址已复制 \u00b7 粘贴到手机浏览器即可打开','ok');}
+      function manual(){
+        try{
+          var ta=document.createElement('textarea');
+          ta.value=u;ta.setAttribute('readonly','');
+          ta.style.cssText='position:fixed;top:-1000px;left:0;opacity:0';
+          document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,u.length);
+          var done=false;
+          try{done=document.execCommand('copy');}catch(e){}
+          document.body.removeChild(ta);
+          if(window.toast)toast(done?'网址已复制 \u00b7 粘贴到手机浏览器即可打开':'复制未成功 \u00b7 请手动复制地址栏网址',done?'ok':'warn');
+        }catch(e){if(window.toast)toast('复制未成功 \u00b7 请手动复制地址栏网址','warn');}
+      }
+      if(navigator.clipboard&&navigator.clipboard.writeText&&window.isSecureContext){navigator.clipboard.writeText(u).then(ok,manual);}
+      else manual();
+    });
+  });
+})();
+</script>
+
+</body>
+</html>
