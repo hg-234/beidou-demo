@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>溯源·北斗 · 3D 时空溯源视图（演示原型）</title>
+<style>
+  :root{
+    --bg0:#08131f; --bg1:#0d2233; --panel:#0f2739; --line:#1d4258;
+    --ink:#dbe9f4; --sub:#8fb0c6; --dim:#5d7f95;
+    --cy:#35c6f4; --ok:#2f9e6b; --mid:#d9a441; --bad:#d64a3a; --wt:#7a8fa3;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+    background:radial-gradient(1200px 700px at 62% 8%,#123048 0%,var(--bg1) 45%,var(--bg0) 100%);
+    color:var(--ink); overflow:hidden;
+  }
+  /* 常驻原型角标 */
+  .badge{
+    position:fixed; top:14px; right:16px; z-index:99;
+    background:rgba(214,74,58,.14); border:1px solid rgba(214,74,58,.55);
+    color:#ffb4a6; font-size:12.5px; letter-spacing:.5px;
+    padding:5px 12px; border-radius:20px; backdrop-filter:blur(3px);
+  }
+  header{
+    padding:16px 26px 10px; display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+    border-bottom:1px solid var(--line);
+  }
+  header h1{font-size:19px; font-weight:600; letter-spacing:.6px}
+  header .sub{font-size:12.5px; color:var(--sub)}
+  header .tag{
+    font-size:11.5px; color:var(--cy); border:1px solid rgba(53,198,244,.4);
+    border-radius:4px; padding:2px 8px; margin-left:auto;
+  }
+  main{display:grid; grid-template-columns:1fr 330px; height:calc(100% - 62px - 46px)}
+  .stage{position:relative; overflow:hidden}
+  .stage svg{width:100%; height:100%; display:block}
+  aside{
+    border-left:1px solid var(--line); background:rgba(10,28,42,.5);
+    padding:14px 14px 10px; overflow-y:auto;
+  }
+  aside h2{
+    font-size:12px; color:var(--sub); font-weight:600; letter-spacing:1.2px;
+    margin:4px 0 9px; padding-left:8px; border-left:3px solid var(--cy);
+  }
+  aside h2.mt{margin-top:16px}
+  /* 时间轴 */
+  .tl{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:11px 12px}
+  .tl .row{display:flex; align-items:center; gap:9px}
+  .tl button{
+    background:rgba(53,198,244,.12); border:1px solid rgba(53,198,244,.45);
+    color:var(--cy); border-radius:6px; width:32px; height:28px; cursor:pointer; font-size:13px;
+  }
+  .tl button:hover{background:rgba(53,198,244,.22)}
+.tl button:active{transform:scale(.9)}
+.tl button:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+  .tl input[type=range]{flex:1; accent-color:var(--cy); cursor:pointer}
+  .tl .clock{font-size:12px; color:var(--ink); font-variant-numeric:tabular-nums; min-width:74px; text-align:right}
+  .tl .hint{font-size:11px; color:var(--dim); margin-top:7px; line-height:1.55}
+  /* 断面 */
+  .sec{
+    display:flex; align-items:center; gap:8px; background:var(--panel);
+    border:1px solid var(--line); border-left:3px solid var(--dim);
+    border-radius:6px; padding:8px 10px; margin-bottom:7px; cursor:pointer;
+    transition:.18s;
+  }
+  .sec:hover{border-left-color:var(--cy); transform:translateX(3px);box-shadow:0 6px 16px -10px rgba(0,0,0,.55)}
+.sec:active{transform:translateX(1px)}
+.sec:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+  .sec.on{border-left-color:var(--cy); background:rgba(53,198,244,.09)}
+  .sec .nm{font-size:12.5px; flex:1}
+  .sec .ds{font-size:11px; color:var(--dim); margin-right:6px}
+  .sec .vv{font-size:14px; font-weight:600; font-variant-numeric:tabular-nums}
+  /* 源 */
+  .src{
+    background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--wt);
+    border-radius:6px; padding:8px 10px; margin-bottom:7px; cursor:pointer; transition:.18s;
+  }
+  .src:hover{border-left-color:var(--cy);transform:translateX(3px);box-shadow:0 6px 16px -10px rgba(0,0,0,.55)}
+.src:active{transform:translateX(1px) scale(.99)}
+.src:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+  .src.on{border-left-color:var(--cy); background:rgba(53,198,244,.09)}
+  .src .t1{display:flex; align-items:center; gap:6px; font-size:12.5px}
+  .src .dot{width:9px; height:9px; border-radius:50%; border:1.6px solid currentColor; flex:none}
+  .src .ci{font-size:11px; color:var(--sub); margin-top:5px; font-variant-numeric:tabular-nums}
+  .src .bar{height:5px; border-radius:3px; background:#12303f; margin-top:6px; position:relative; overflow:hidden}
+  .src .bar i{position:absolute; top:0; bottom:0; background:linear-gradient(90deg,#35c6f4,#d64a3a); border-radius:3px}
+  .src .pend{
+    display:inline-block; font-size:10.5px; color:#ffca7a; border:1px solid rgba(255,202,122,.45);
+    border-radius:3px; padding:0 5px; margin-top:6px;
+  }
+  .src .pend.done{color:#7ddba6; border-color:rgba(125,219,166,.5)}
+  /* 图例 */
+  .lg{display:flex; gap:11px; flex-wrap:wrap; font-size:11px; color:var(--sub); margin-top:4px}
+  .lg i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; vertical-align:-1px}
+  footer{
+    height:46px; display:flex; align-items:center; gap:12px;
+    padding:0 26px; border-top:1px solid var(--line);
+    font-size:11.5px; color:var(--dim); background:rgba(8,19,31,.6);
+  }
+  footer b{color:#ffb4a6; font-weight:600}
+  /* SVG 内交互 */
+  .hot{cursor:pointer}
+  .pop{
+    position:absolute; z-index:20; min-width:188px; max-width:250px;
+    background:rgba(12,32,47,.96); border:1px solid var(--line);
+    border-radius:8px; padding:10px 12px; font-size:12px; line-height:1.65;
+    box-shadow:0 10px 30px rgba(0,0,0,.5); pointer-events:none; opacity:0; transition:opacity .15s;
+  }
+  .pop.on{opacity:1}
+  .pop .h{font-size:12.5px; font-weight:600; color:var(--cy); margin-bottom:4px}
+  .pop .k{color:var(--dim)}
+
+  /* ===================== 答辩加分交互（本轮新增） ===================== */
+  .ib{
+    display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    background:var(--panel); border:1px solid var(--line); color:var(--sub);
+    border-radius:7px; padding:7px 10px; font-size:11.5px; cursor:pointer;
+    font-family:inherit; transition:.16s; white-space:nowrap; width:100%;
+  }
+  .ib:hover{border-color:var(--cy); color:var(--cy); background:rgba(53,198,244,.08)}
+.ib:active{transform:scale(.97);transition-duration:.07s}
+.ib:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+  .ib.on{border-color:var(--cy); color:var(--cy); background:rgba(53,198,244,.15); font-weight:600}
+  .ib.hl{border-color:rgba(214,74,58,.55); color:#ffb4a6}
+  .ib.hl:hover{border-color:var(--bad); color:#ffcabf; background:rgba(214,74,58,.10)}
+  .ctrl{display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:4px}
+  .ctrl .wide{grid-column:1 / -1}
+
+  /* 授时基准开关 */
+  .sync{display:flex; background:#0b1e2c; border:1px solid var(--line); border-radius:7px; padding:3px; margin-bottom:8px}
+  .sync button{
+    flex:1; background:transparent; border:0; color:var(--dim); font-size:11.5px;
+    padding:6px 4px; border-radius:5px; cursor:pointer; font-family:inherit; transition:.16s;
+  }
+  .sync button.on{background:rgba(53,198,244,.16); color:var(--cy); font-weight:600}
+.sync button:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+.sync button:active{transform:scale(.97)}
+  .sync button.no.on{background:rgba(214,74,58,.16); color:#ffb4a6}
+  .syncnote{font-size:11px; color:var(--dim); line-height:1.55; margin-bottom:9px}
+
+  /* 迁移时间窗轨道 */
+  .winbox{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:9px 10px 8px}
+  .wrow{display:flex; align-items:center; gap:7px; margin-bottom:5px}
+  .wrow .id{font-size:10.5px; color:var(--sub); width:42px; flex:none; font-variant-numeric:tabular-nums}
+  .wtrack{position:relative; flex:1; height:11px; background:#0b1e2c; border-radius:3px; overflow:hidden}
+  .wbar{position:absolute; top:2px; bottom:2px; border-radius:2px; opacity:.85}
+  .wbar.ov{outline:1px dashed rgba(255,180,166,.8); outline-offset:-1px}
+  .wtick{position:absolute; top:0; bottom:0; width:1px; background:rgba(53,198,244,.9)}
+  .wfoot{display:flex; justify-content:space-between; font-size:10.5px; color:var(--dim); margin-top:3px}
+  .wverdict{margin-top:7px; font-size:11.5px; padding:6px 9px; border-radius:5px; line-height:1.55}
+  .wverdict b{font-weight:600}
+  .wverdict.ok{background:rgba(47,158,107,.14); color:#8fe0b4; border:1px solid rgba(47,158,107,.4)}
+  .wverdict.no{background:rgba(214,74,58,.14); color:#ffb4a6; border:1px solid rgba(214,74,58,.45)}
+
+  /* 自动演示字幕条 */
+  .cap{
+    position:absolute; left:50%; transform:translateX(-50%); bottom:16px; z-index:18;
+    max-width:82%; background:rgba(8,22,34,.93); border:1px solid var(--line);
+    border-radius:8px; padding:9px 16px; font-size:13px; line-height:1.65; text-align:center;
+    opacity:0; transition:opacity .25s; pointer-events:none; box-shadow:0 8px 24px rgba(0,0,0,.45);
+  }
+  .cap.on{opacity:1}
+  .cap b{color:var(--cy)}
+
+  /* 「你来溯源」对照卡 */
+  .quiz{
+    position:absolute; left:50%; top:14px; transform:translateX(-50%); z-index:20;
+    width:min(580px,88%); background:rgba(10,26,39,.97); border:1px solid var(--line);
+    border-radius:9px; padding:13px 16px; box-shadow:0 12px 34px rgba(0,0,0,.5); display:none;
+  }
+  .quiz.on{display:block}
+  .quiz .q{font-size:13px; margin-bottom:9px; line-height:1.6; padding-right:20px}
+  .quiz .cmp{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:9px}
+  .quiz .cell{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:8px 10px; font-size:11.5px; line-height:1.65}
+  .quiz .cell .k{color:var(--dim); font-size:10.5px; display:block; margin-bottom:2px}
+  .quiz .guard{font-size:11px; color:#ffd08a; line-height:1.6; border-top:1px dashed var(--line); padding-top:8px}
+  .quiz .close{
+    position:absolute; top:6px; right:10px; background:none; border:0; color:var(--dim);
+    font-size:18px; cursor:pointer; line-height:1; padding:2px 5px;
+  }
+  .quiz .close:hover{color:var(--cy)}
+
+  /* 答辩要点抽屉 */
+  .drawer{
+    position:fixed; top:0; right:0; bottom:0; width:430px; max-width:92vw; z-index:80;
+    background:rgba(11,28,42,.985); border-left:1px solid var(--line);
+    transform:translateX(100%); transition:transform .28s ease; overflow-y:auto;
+    padding:54px 22px 30px; box-shadow:-14px 0 40px rgba(0,0,0,.5);
+  }
+  .drawer.on{transform:translateX(0)}
+  .drawer .dh{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+  .drawer .dh h3{font-size:15px; flex:1}
+  .drawer .x{background:none;border:1px solid var(--line);color:var(--sub);border-radius:6px;
+    cursor:pointer;font-size:13px;padding:3px 9px;font-family:inherit}
+  .drawer .x:hover{border-color:var(--cy);color:var(--cy)}
+  .drawer .dsub{font-size:11.5px; color:var(--dim); margin-bottom:15px; line-height:1.65}
+  .qa{border:1px solid var(--line); border-radius:8px; margin-bottom:9px; overflow:hidden; background:var(--panel)}
+  .qa summary{padding:9px 12px; font-size:12.5px; cursor:pointer; color:var(--ink);
+    list-style:none; display:flex; gap:8px; align-items:flex-start; line-height:1.5}
+  .qa summary::-webkit-details-marker{display:none}
+  .qa summary:before{content:"Q"; flex:none; color:var(--cy); font-weight:700; font-size:10.5px;
+    border:1px solid rgba(53,198,244,.45); border-radius:3px; padding:1px 5px}
+  .qa[open] summary{border-bottom:1px solid var(--line); color:var(--cy)}
+  .qa .a{padding:10px 12px; font-size:12px; color:var(--sub); line-height:1.8}
+  .qa .a b{color:#dbe9f4; font-weight:600}
+  .qa .a em{color:#ffd08a; font-style:normal}
+  .qa .play{display:inline-block;margin-top:6px;font-size:11px;color:var(--cy);
+    border:1px solid rgba(53,198,244,.4);border-radius:4px;padding:1px 7px}
+/* 手机窄屏：上下堆叠（河道图在上，操作面板在下，可滚动） */
+@media (max-width:700px){
+  body{overflow:auto}
+  header{padding:12px 16px 8px}
+  main{display:block; height:auto}
+  .stage{height:46vh; min-height:260px}
+  aside{border-left:none; border-top:1px solid var(--line)}
+  footer{padding:0 16px}
+}
+/* 无障碍：尊重“减少动效”系统偏好 */
+@media (prefers-reduced-motion:reduce){
+  *{transition-duration:.01ms!important;animation-duration:.01ms!important}
+  .drawer{transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="badge">演示原型 · 模拟数据</div>
+
+<header>
+  <h1>3D 时空溯源视图</h1>
+  <span class="sub">污染物沿河道迁移 · 沿程断面浓度 · 候选源置信带（等距伪 3D / 零依赖）</span>
+  <span class="tag">S6 · 承接 S5 责任链回溯</span>
+</header>
+
+<main>
+  <div class="stage" id="stage">
+    <svg id="view" viewBox="0 0 1020 620" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="pop" id="pop"></div>
+    <div class="cap" id="cap"></div>
+    <div class="quiz" id="quiz">
+      <button class="close" id="quizClose" title="关闭">×</button>
+      <div class="q" id="quizQ"></div>
+      <div class="cmp" id="quizCmp"></div>
+      <div class="guard" id="quizGuard"></div>
+    </div>
+  </div>
+
+  <aside>
+    <h2>答辩交互</h2>
+    <div class="ctrl">
+      <button class="ib hl wide" id="btnAuto">▶ 一键自动演示（约 30 秒动线）</button>
+      <button class="ib" id="btnQuiz">🔍 你来溯源</button>
+      <button class="ib" id="btnQA">📋 答辩要点</button>
+    </div>
+    <div style="font-size:10.5px;color:var(--dim);line-height:1.85;margin:7px 0 4px">
+      快捷键：<b style="color:var(--sub)">空格</b>播放 · <b style="color:var(--sub)">1–4</b>选源 · <b style="color:var(--sub)">B</b>授时<br>
+      <b style="color:var(--sub)">A</b>自动演示 · <b style="color:var(--sub)">Q</b>你来溯源 · <b style="color:var(--sub)">D</b>答辩要点
+    </div>
+
+    <h2 class="mt">时间轴 · 三联动</h2>
+    <div class="tl">
+      <div class="row">
+        <button id="play" title="播放/暂停">▶</button>
+        <input type="range" id="t" min="0" max="1000" value="0">
+        <span class="clock" id="clock">T+00:00</span>
+      </div>
+      <div class="hint">拖动时间轴 → <b>粒子位置</b>、<b>断面浓度</b>、<b>候选源置信带宽度</b> 同步变化。此为原型内置的预生成模拟时序。</div>
+    </div>
+
+    <h2 class="mt">授时基准 · 可辨识性</h2>
+    <div class="sync">
+      <button id="mBd" class="on">北斗统一时间基</button>
+      <button id="mFr" class="no">各自时钟</button>
+    </div>
+    <div class="syncnote" id="syncNote"></div>
+    <div class="winbox">
+      <div id="winRows"></div>
+      <div class="wfoot"><span>T+00:00</span><span>迁移时间窗</span><span>T+08:00</span></div>
+      <div class="wverdict" id="wverdict"></div>
+    </div>
+
+    <h2 class="mt">候选源 · 贡献度区间</h2>
+    <div id="srcList"></div>
+    <div class="lg">
+      <span><i style="background:#2f9e6b"></i>Ⅲ类以内</span>
+      <span><i style="background:#d9a441"></i>超Ⅲ类</span>
+      <span><i style="background:#d64a3a"></i>严重</span>
+      <span><i style="background:#7a8fa3"></i>候选(空心)</span>
+    </div>
+
+    <h2 class="mt">沿程断面（距河口）</h2>
+    <div id="secList"></div>
+  </aside>
+</main>
+
+<footer>
+  <b>边界声明</b>：本视图为执法调查的<b>线索排序与时间窗参考</b>，非直接证据；"贡献度"表示线索排序、<b>非定责</b>；AI 只给线索、结论由人确认。数据为演示原型内置模拟值。
+</footer>
+
+<!-- ===================== 答辩要点抽屉（提词用，建议不投到投影） ===================== -->
+<div class="drawer" id="qa">
+  <div class="dh">
+    <h3>答辩要点 · 高频追问与应答</h3>
+    <button class="x" id="qaClose">关闭 ×</button>
+  </div>
+  <div class="dsub">每条都对应演示件里可当场「演」出来的证据。<b>本抽屉供你与队友提词用，建议不要投到投影上。</b></div>
+
+  <details class="qa" open>
+    <summary>这跟普通在线水质监测有什么不同？</summary>
+    <div class="a">
+      普通监测回答「此刻是多少」，本系统回答<b>「什么时刻、从哪来、能不能分辨」</b>。三件事支撑它：<br>
+      ① 各断面时间戳对齐到<b>北斗统一时间基</b>，时延可比；<br>
+      ② 记录进<b>哈希链</b>，可审计、可检测篡改；<br>
+      ③ 用机理约束把候选源筛成<b>区间</b>，缺测过高就输出「不可辨识」。<br>
+      <span class="play">现场可演 ▸ 切到「各自时钟」，看时间窗如何重叠</span>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>为什么非要用北斗？网络对时 / GPS 不行吗？</summary>
+    <div class="a">
+      要的不是「更高精度」，是<b>统一且可审计的时间基准</b>。网络对时依赖运营商、覆盖不稳；农村水体恰恰在<b>无公网盲区</b>，本系统靠短报文回传。<br>
+      北斗给的是三合一：<b>同一时基 + 广域可达 + 可独立校核</b>。<br>
+      <span class="play">现场可演 ▸ 授时开关一关，4 个源时间窗立刻重叠 → 只剩「不可辨识」</span>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>缺测率 63%–76%，这么稀疏还敢溯源？</summary>
+    <div class="a">
+      <b>系统不假装数据变多了</b>。缺测就按缺测处理：只在<b>源谱可分辨、有效特征维度 ≥ 源数、共线性诊断通过</b>时才给区间；不满足就明确输出<b>「不可辨识」</b>，而不是硬凑一个权重。<br>
+      <em>诚实拒答是设计特性，不是缺陷。</em><br>
+      <span class="play">现场可演 ▸ 拖时间轴到末端，看区间由宽收窄 + "待人工确认"标记</span>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>会不会冤枉企业？结论能当执法证据吗？</summary>
+    <div class="a">
+      不会——<b>本系统不产生结论</b>。输出是<b>线索排序与时间窗参考</b>，不是直接证据；「贡献度」是<b>排序</b>不是<b>定责</b>；AI 只给线索，任何结论须经<b>人工复核留痕</b>方可采信。正式认定须按 <b>HJ 91.1 / HJ 91.2</b> 采样、由资质实验室出具报告。<br>
+      <span class="play">现场可演 ▸ 「你来溯源」选一个源，看系统只给区间、不下判决</span>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>精度到底是多少？「&lt;1 ms」是什么口径？</summary>
+    <div class="a">
+      要分清两个数：<b>&lt;1 ms 是「触发对齐误差」的设计目标</b>（触发信号对齐水平），<b>不等于整机测量总误差</b>（还含传感器、采样、时延估计等）。<br>
+      我们只对<b>已知时刻注入 / 回放事件</b>统计估计迁移时刻的偏差与时间窗覆盖率，<b>不宣称端到端绝对精度</b>。<br>
+      <span class="play">现场可演 ▸ 授时开关下的时间窗宽度对比</span>
+    </div>
+  </details>
+
+  <details class="qa">
+    <summary>这条路线真正的创新点在哪？</summary>
+    <div class="a">
+      不是「用了 AI」，而是<b>把「可辨源性」建立在可信时空基上</b>。同样做源反演，别人用各自时钟或相对时间；我们把时间项由<b>北斗统一时基</b>标定；并且对不可辨识的情形<b>如实拒答</b>——这在同类系统里恰恰是被省略的一环。<br>
+      <span class="play">现场可演 ▸ 先演「你来溯源」，再切授时开关，最后开自动演示收尾</span>
+    </div>
+  </details>
+</div>
+
+<script>
+/* ================= 数据契约（与 demo-data.json 对齐 · 示意） ================= */
+var RIVER_D = "M 96 96 C 250 150, 300 268, 470 296 C 620 322, 700 402, 836 452 C 900 474, 940 512, 962 556";
+
+/* 断面：距河口越远 = 越上游 */
+var SECS = [
+  { id:"SEC-A", nm:"上游断面 A", dist:2900, at:0.20, base:0.62 },
+  { id:"SEC-B", nm:"中游断面 B", dist:2050, at:0.53, base:1.28 },
+  { id:"SEC-C", nm:"下游断面 C", dist:850,  at:0.85, base:0.84 }
+];
+
+/* 候选源：岸侧偏移 + 初始/终末贡献度区间（随 t 收窄 = 不确定性收敛） */
+var SRCS = [
+  { id:"SRC-1", nm:"农田退水口", side:-1, at:0.26, c0:[0.18,0.52], c1:[0.29,0.41], col:"#7fd4a8" },
+  { id:"SRC-2", nm:"生活污水排放口", side: 1, at:0.44, c0:[0.22,0.66], c1:[0.44,0.58], col:"#9ec8ff" },
+  { id:"SRC-3", nm:"养殖场排水口", side:-1, at:0.64, c0:[0.14,0.58], c1:[0.21,0.35], col:"#ffd08a" },
+  { id:"SRC-4", nm:"支流汇入点",   side: 1, at:0.78, c0:[0.10,0.48], c1:[0.12,0.26], col:"#e0a9ff" }
+];
+
+var GRADE = [
+  { max:1.0, col:"#2f9e6b", lab:"Ⅲ类以内" },
+  { max:1.5, col:"#d9a441", lab:"超Ⅲ类" },
+  { max:2.5, col:"#e07a34", lab:"较重" },
+  { max:99,  col:"#d64a3a", lab:"严重" }
+];
+function gradeOf(v){ for(var i=0;i<GRADE.length;i++){ if(v<=GRADE[i].max) return GRADE[i]; } return GRADE[3]; }
+
+/* ================= 等距投影（world → screen） ================= */
+/* world: x 东(下游方向), z 北, y 高度。屏幕：右=+x 右下=+z 上=-y */
+var ISO = { cos: Math.cos(Math.PI/6), sin: Math.sin(Math.PI/6) };
+function proj(wx, wy, wz, ox, oy){        /* 返回 [sx, sy] */
+  var sx = (wx - wz) * ISO.cos;
+  var sy = (wx + wz) * ISO.sin - wy;
+  return [ox + sx, oy + sy];
+}
+
+/* ================= 构建场景 ================= */
+var svg = document.getElementById("view");
+var NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent){
+  var e = document.createElementNS(NS, tag);
+  for(var k in attrs){ e.setAttribute(k, attrs[k]); }
+  if(parent) parent.appendChild(e);
+  return e;
+}
+function txt(x,y,s,o,parent){
+  o = o || {};
+  var t = el("text", { x:x, y:y, fill:o.fill||"#dbe9f4", "font-size":o.size||12,
+    "text-anchor":o.anchor||"middle", "font-weight":o.weight||400,
+    "font-family":"Microsoft YaHei, PingFang SC, sans-serif",
+    opacity:(o.op==null?1:o.op),
+    "paint-order":"stroke", stroke:"rgba(8,19,31,.9)", "stroke-width":3.2 }, parent || null);
+  t.textContent = s; return t;
+}
+
+/* 用隐藏 path 做几何采样 */
+var geo = el("path", { d:RIVER_D, fill:"none" });
+svg.appendChild(geo);
+var PLEN = geo.getTotalLength();
+function P(u){ return geo.getPointAtLength(Math.max(0, Math.min(1,u)) * PLEN); }
+function TAN(u){
+  var a = P(Math.max(0,u-0.004)), b = P(Math.min(1,u+0.004));
+  var dx=b.x-a.x, dy=b.y-a.y, m=Math.hypot(dx,dy)||1;
+  return { x:dx/m, y:dy/m };
+}
+function NRM(u){ var t=TAN(u); return { x:-t.y, y:t.x }; }   /* 法线 */
+
+/* 水面宽度：上游窄 → 下游宽（透视感） */
+function riverW(u){ return 12 + 46 * Math.pow(u, 1.15); }
+
+var layers = {};
+["grid","depth","water","temp","secs","srcs","part","lab"].forEach(function(k){
+  layers[k] = el("g", {}, svg);
+});
+
+/* ---- 1. 等距地形网格（提供三维纵深参照） ---- */
+(function(){
+  var g = layers.grid, N = 9, G = 78, ox = 150, oy = 96;
+  for(var i=0;i<=N;i++){
+    var pts = [];
+    for(var j=0;j<=N;j++){
+      var p = proj(i*G, 0, j*G, ox, oy);
+      pts.push(p[0].toFixed(1) + "," + p[1].toFixed(1));
+    }
+    el("polyline", { points:pts.join(" "), fill:"none", stroke:"#1d4258", "stroke-width":.7, opacity:.42 }, g);
+  }
+  for(var k=0;k<=N;k++){
+    var q = [];
+    for(var m=0;m<=N;m++){
+      var pp = proj(m*G, 0, k*G, ox, oy);
+      q.push(pp[0].toFixed(1) + "," + pp[1].toFixed(1));
+    }
+    el("polyline", { points:q.join(" "), fill:"none", stroke:"#1d4258", "stroke-width":.7, opacity:.42 }, g);
+  }
+})();
+
+/* ---- 2. 河床（暗底 + 岸线） ---- */
+el("path", { d:RIVER_D, fill:"none", stroke:"#0a2334", "stroke-width":66,
+  "stroke-linecap":"round", "stroke-linejoin":"round" }, layers.depth);
+el("path", { d:RIVER_D, fill:"none", stroke:"#14384f", "stroke-width":58,
+  "stroke-linecap":"round", "stroke-linejoin":"round" }, layers.water);
+
+/* 水面中心亮线 */
+el("path", { d:RIVER_D, fill:"none", stroke:"#1d6a92", "stroke-width":2.2,
+  "stroke-linecap":"round", opacity:.85 }, layers.water);
+
+/* 河岸两侧描边 */
+[1,-1].forEach(function(s){
+  var seg = [];
+  for(var u=0; u<=1.0001; u+=0.02){
+    var p = P(u), n = NRM(u), w = riverW(u)/2 + 3;
+    seg.push((p.x + n.x*w*s).toFixed(1) + "," + (p.y + n.y*w*s).toFixed(1));
+  }
+  el("polyline", { points:seg.join(" "), fill:"none", stroke:"#2a637f",
+    "stroke-width":1.4, opacity:.65 }, layers.depth);
+});
+
+/* 上游/下游标注 */
+(function(){
+  var a = P(0.02), b = P(0.99);
+  txt(a.x, a.y-30, "上游", { fill:"#8fb0c6", size:12 }, layers.lab);
+  txt(b.x, b.y+30, "下游（河口方向）", { fill:"#8fb0c6", size:12 }, layers.lab);
+})();
+
+/* ---- 3. 断面（横切线 + 数值色带） ---- */
+var secNodes = {};
+SECS.forEach(function(s){
+  var g = el("g", { "class":"hot" }, layers.secs);
+  var p = P(s.at), n = NRM(s.at), w = riverW(s.at)/2 + 9;
+
+  var l = el("line", { x1:p.x-n.x*w, y1:p.y-n.y*w, x2:p.x+n.x*w, y2:p.y+n.y*w,
+    stroke:s.base>1.5?"#d64a3a":"#d9a441", "stroke-width":3, "stroke-dasharray":"7 4",
+    opacity:.9 }, g);
+  var c = el("circle", { cx:p.x, cy:p.y, r:4.5, fill:"#0d2233", stroke:"#35c6f4", "stroke-width":2 }, g);
+
+  var lab = txt(p.x - n.x*(w+26), p.y - n.y*(w+26) - 6, s.id, { fill:"#35c6f4", size:12.5, weight:600 }, layers.lab);
+  var val = txt(p.x - n.x*(w+26), p.y - n.y*(w+26) + 11, "", { fill:"#dbe9f4", size:13, weight:600 }, layers.lab);
+  g._line = l; g._circ = c; g._val = val; g._lab = lab;
+  g.addEventListener("click", function(ev){ showSecPop(s, ev); });
+  secNodes[s.id] = g;
+});
+
+/* ---- 4. 候选源（空心 + 置信带椭圆 + 虚线连接河心） ---- */
+var srcNodes = {};
+SRCS.forEach(function(s){
+  var g = el("g", { "class":"hot" }, layers.srcs);
+  var p = P(s.at), n = NRM(s.at), off = riverW(s.at)/2 + 34;
+
+  /* 置信带椭圆（宽度随 t 变化，初值） */
+  var band = el("ellipse", { cx:0, cy:0, rx:26, ry:13, fill:"rgba(122,143,163,.10)",
+    stroke:"#7a8fa3", "stroke-width":1, "stroke-dasharray":"3 3" }, g);
+  /* 连接线（先虚线，人工确认后实线） */
+  var link = el("line", { x1:0, y1:0, x2:0, y2:0, stroke:"#7a8fa3",
+    "stroke-width":1.3, "stroke-dasharray":"4 3", opacity:.85 }, g);
+  /* 空心标记 */
+  var ring = el("circle", { cx:0, cy:0, r:8, fill:"rgba(13,34,51,.85)", stroke:s.col, "stroke-width":2.2 }, g);
+  var inner = el("circle", { cx:0, cy:0, r:2.6, fill:s.col, opacity:.9 }, g);
+  var name = txt(0,0,s.id,{ fill:s.col, size:11.5, weight:600 }, layers.lab);
+
+  g._band = band; g._link = link; g._ring = ring; g._name = name;
+  g._inner = inner;
+  g.addEventListener("click", function(ev){ onSrcClick(s.id, ev); });
+  srcNodes[s.id] = g;
+});
+
+/* ---- 5. 沿程浓度色带（随 t 变化 = "污染团"在河道上的分布） ---- */
+function concAt(u, t){
+  var v = 0.26;
+  SECS.forEach(function(s){
+    v += (secVal(s, t) - 0.28) * Math.exp(-Math.pow((u - s.at)/0.17, 2));
+  });
+  return Math.max(0.15, v);
+}
+var SEGN = 44, segs = [];
+(function(){
+  for(var i=0;i<SEGN;i++){
+    var u0 = i/SEGN, u1 = (i+1)/SEGN;
+    var a = P(u0), b = P(u1);
+    var w = (riverW(u0) + riverW(u1))/2 - 4;
+    var ln = el("line", { x1:a.x, y1:a.y, x2:b.x, y2:b.y, stroke:"#1d6a92",
+      "stroke-width":w, "stroke-linecap":"round", "stroke-opacity":.5 }, layers.temp);
+    segs.push({ node:ln, u:(u0+u1)/2 });
+  }
+})();
+
+/* ---- 6. 粒子（沿河道迁移，灰度概率点云） ---- */
+var PN = 46, parts = [];
+(function(){
+  for(var i=0;i<PN;i++){
+    var c = el("circle", { r:2.1, fill:"#cfe6f5", opacity:.55 }, layers.part);
+    parts.push({ node:c, off: i/PN, jx:(Math.random()*2-1)*10, jy:(Math.random()*2-1)*7,
+      sp: 0.75 + Math.random()*0.5 });
+  }
+})();
+
+/* ================= 状态与联动 ================= */
+var T = 0;                 /* 归一化 0..1 */
+var playing = false;
+var confirmed = {};        /* 人工确认标记 */
+var selSrc = null, selSec = null;
+var raf = null, last = 0;
+
+var tEl = document.getElementById("t");
+var clockEl = document.getElementById("clock");
+var popEl = document.getElementById("pop");
+
+function fmtClock(t){
+  var total = Math.round(t * 8 * 60);           /* 映射为 8 小时事件窗 */
+  var h = Math.floor(total/60), m = total%60;
+  return "T+" + String(h).padStart(2,"0") + ":" + String(m).padStart(2,"0");
+}
+
+/* 断面浓度：以 base 为峰值的脉冲，沿 t 平移 */
+function secVal(s, t){
+  var d = t - s.at;                       /* 相对到达时刻 */
+  var v = s.base * Math.exp(-Math.pow(d/0.20, 2));
+  v += 0.28 + 0.05*Math.sin(t*9 + s.dist*0.01);
+  return Math.max(0.12, v);
+}
+/* 源贡献度区间：随 t 收窄（不确定性收敛）；无统一时间基时无法收敛 */
+function srcCI(s, t){
+  var k = Math.min(1, t/s.at);            /* 到达该源时刻后开始收敛 */
+  var lo = s.c0[0] + (s.c1[0]-s.c0[0]) * k;
+  var hi = s.c0[1] + (s.c1[1]-s.c0[1]) * k;
+  if(syncMode === "free"){
+    /* 时钟自由漂移 → 时延估计失效 → 区间不收敛，保持/外扩初值宽度 */
+    var w0 = s.c0[1]-s.c0[0], w = Math.max(hi-lo, w0) * 1.55, mid = (lo+hi)/2;
+    lo = Math.max(0, mid - w/2); hi = Math.min(1, mid + w/2);
+  }
+  return [lo, hi];
+}
+
+/* ---- 渲染 ---- */
+function render(){
+  var t = T;
+
+  /* 沿程浓度色带：颜色 = 该处浓度分级，透明度 = 浓度强度 */
+  segs.forEach(function(g){
+    var v = concAt(g.u, t), gd = gradeOf(v);
+    g.node.setAttribute("stroke", gd.col);
+    g.node.setAttribute("stroke-opacity", (0.18 + 0.55*Math.min(1, v/2.2)).toFixed(2));
+  });
+
+  /* 粒子：整体前移 + 抖动（概率密度点云，非定向箭头） */
+  parts.forEach(function(p){
+    var u = (p.off + t*1.35 * p.sp) % 1;
+    var pt = P(u), n = NRM(u), w = riverW(u)/2;
+    var jitter = (1 - u) * 0.9 + 0.1;          /* 上游更弥散 */
+    var x = pt.x + n.x * p.jx * jitter;
+    var y = pt.y + n.y * p.jy * jitter;
+    p.node.setAttribute("cx", x.toFixed(1));
+    p.node.setAttribute("cy", y.toFixed(1));
+    /* 上游弥散、下游聚焦：透明度与半径随 u 增强（不确定性收敛） */
+    p.node.setAttribute("r", (1.4 + 2.0*u).toFixed(2));
+    p.node.setAttribute("opacity", (0.28 + 0.5*u).toFixed(2));
+  });
+
+  /* 断面 */
+  SECS.forEach(function(s){
+    var g = secNodes[s.id], v = secVal(s, t), gd = gradeOf(v);
+    g._val.textContent = v.toFixed(2) + " mg/L";
+    g._val.setAttribute("fill", gd.col);
+    g._line.setAttribute("stroke", gd.col);
+    g._circ.setAttribute("stroke", gd.col);
+  });
+
+  /* 候选源 */
+  SRCS.forEach(function(s){
+    var g = srcNodes[s.id], p = P(s.at), n = NRM(s.at), off = riverW(s.at)/2 + 34;
+    var cx = p.x + n.x*off*s.side, cy = p.y + n.y*off*s.side;
+    var ci = srcCI(s, t), mid = (ci[0]+ci[1])/2;
+    var isConf = !!confirmed[s.id];
+
+    /* 置信带：宽度 ∝ 区间跨度（不确定性可视化） */
+    var span = ci[1]-ci[0];
+    g._band.setAttribute("cx", cx); g._band.setAttribute("cy", cy);
+    g._band.setAttribute("rx", (10 + span*230).toFixed(1));
+    g._band.setAttribute("ry", (7 + span*84).toFixed(1));
+    g._band.setAttribute("stroke", selSrc===s.id ? "#35c6f4" : "#7a8fa3");
+    g._band.setAttribute("fill", selSrc===s.id ? "rgba(53,198,244,.12)" : "rgba(122,143,163,.10)");
+
+    /* 连接线：确认后由虚线 → 实线 */
+    g._link.setAttribute("x1", cx); g._link.setAttribute("y1", cy);
+    g._link.setAttribute("x2", p.x); g._link.setAttribute("y2", p.y);
+    g._link.setAttribute("stroke-dasharray", isConf ? "none" : "4 3");
+    g._link.setAttribute("stroke", isConf ? s.col : "#7a8fa3");
+    g._link.setAttribute("opacity", isConf ? .95 : .6);
+    g._link.setAttribute("stroke-width", isConf ? 2 : 1.3);
+
+    g._ring.setAttribute("cx", cx); g._ring.setAttribute("cy", cy);
+    g._ring.setAttribute("stroke", isConf ? s.col : (selSrc===s.id ? "#35c6f4" : s.col));
+    g._ring.setAttribute("r", isConf ? 9 : 8);
+    g._inner.setAttribute("cx", cx); g._inner.setAttribute("cy", cy);
+    g._inner.setAttribute("opacity", isConf ? 1 : 0.55);
+    g._name.setAttribute("x", cx); g._name.setAttribute("y", cy + 22);
+    g._name.setAttribute("fill", isConf ? s.col : (selSrc===s.id ? "#35c6f4" : "#7a8fa3"));
+  });
+  updatePanels();
+  renderWin();
+
+  clockEl.textContent = fmtClock(t);
+}
+
+/* ---- 面板：构建一次，之后只增量更新数值（避免每帧重建 DOM 导致掉帧） ---- */
+var secPN = {}, srcPN = {};
+function buildPanels(){
+  var box = document.getElementById("secList"), h = "";
+  SECS.forEach(function(s){
+    h += '<div class="sec" data-sec="' + s.id + '">'
+      +  '<span class="nm">' + s.nm + '</span>'
+      +  '<span class="ds">' + s.dist + ' m</span>'
+      +  '<span class="vv"></span></div>';
+  });
+  box.innerHTML = h;
+  box.addEventListener("click", function(e){
+    var n = e.target.closest("[data-sec]"); if(!n) return;
+    selSec = (selSec === n.dataset.sec ? null : n.dataset.sec); render();
+  });
+  SECS.forEach(function(s){
+    var n = box.querySelector('[data-sec="' + s.id + '"]');
+    secPN[s.id] = { root:n, vv:n.querySelector(".vv") };
+  });
+
+  box = document.getElementById("srcList"); h = "";
+  SRCS.forEach(function(s){
+    h += '<div class="src" data-src="' + s.id + '">'
+      +  '<div class="t1"><span class="dot" style="color:' + s.col + '"></span>'
+      +  s.id + ' · ' + s.nm
+      +  '<span class="cf" style="margin-left:auto;font-size:10.5px;color:#7ddba6;display:none">已确认</span></div>'
+      +  '<div class="ci"></div>'
+      +  '<div class="bar"><i></i></div>'
+      +  '<span class="pend">待人工确认</span></div>';
+  });
+  box.innerHTML = h;
+  box.addEventListener("click", function(e){
+    var n = e.target.closest("[data-src]"); if(!n) return;
+    onSrcClick(n.dataset.src, null);
+  });
+  SRCS.forEach(function(s){
+    var n = box.querySelector('[data-src="' + s.id + '"]');
+    srcPN[s.id] = { root:n, ci:n.querySelector(".ci"), bar:n.querySelector(".bar i"),
+                    pend:n.querySelector(".pend"), cf:n.querySelector(".cf") };
+  });
+}
+
+function updatePanels(){
+  SECS.forEach(function(s){
+    var v = secVal(s, T), gd = gradeOf(v), o = secPN[s.id];
+    o.vv.textContent = v.toFixed(2);
+    o.vv.style.color = gd.col;
+    o.root.classList.toggle("on", selSec === s.id);
+  });
+  SRCS.forEach(function(s){
+    var ci = srcCI(s, T), o = srcPN[s.id], isConf = !!confirmed[s.id];
+    var noId = (syncMode === "free");
+    o.ci.textContent = noId
+      ? "贡献度区间 ——（不可辨识）"
+      : "贡献度区间 " + (ci[0]*100).toFixed(0) + "% – " + (ci[1]*100).toFixed(0) + "%";
+    o.bar.style.left = (ci[0]*100) + "%";
+    o.bar.style.width = ((ci[1]-ci[0])*100) + "%";
+    o.pend.textContent = noId ? "不可辨识 · 待补充观测"
+                    : (isConf ? "人工已确认 · 转为实线" : "待人工确认");
+    o.pend.className = "pend" + (noId ? "" : (isConf ? " done" : ""));
+    o.cf.style.display = isConf ? "inline" : "none";
+    o.root.classList.toggle("on", selSrc === s.id);
+  });
+}
+
+/* ---- 交互：单击选中源 / 再点一次 = 人工确认 ---- */
+function onSrcClick(id, ev){
+  if(ev){ ev.stopPropagation(); }
+  var s = SRCS.filter(function(x){ return x.id === id; })[0];
+  play(false);
+  if(quizOn){                       /* 「你来溯源」模式：点击 = 提交你的判断 */
+    stopAuto();
+    selSrc = id; selSec = null;
+    showQuizCmp(id);
+    render();
+    return;
+  }
+  if(selSrc === id){
+    confirmed[id] = !confirmed[id];     /* 已选中 → 再点一次 = 切换人工确认 */
+  } else {
+    selSrc = id;
+  }
+  showSrcPop(s, ev);
+  render();
+}
+
+function showSrcPop(s, ev){
+  var ci = srcCI(s, T);
+  var isConf = !!confirmed[s.id];
+  popEl.innerHTML =
+    '<div class="h">' + s.id + ' · ' + s.nm + '</div>'
+  + '<div><span class="k">贡献度区间：</span>' + (ci[0]*100).toFixed(0) + '% – ' + (ci[1]*100).toFixed(0) + '%</div>'
+  + '<div><span class="k">链路匹配：</span>时延约束 v=L/Δt ∈ [0.15, 1.0] m/s</div>'
+  + '<div><span class="k">状态：</span>' + (isConf ? '人工已确认' : '待人工确认（线索，非定责）') + '</div>';
+  popEl.classList.add("on");
+  placePop(ev);
+}
+function showSecPop(s, ev){
+  var v = secVal(s, T), gd = gradeOf(v);
+  popEl.innerHTML =
+    '<div class="h">' + s.id + ' · ' + s.nm + '</div>'
+  + '<div><span class="k">距河口：</span>' + s.dist + ' m</div>'
+  + '<div><span class="k">当前浓度：</span>' + v.toFixed(2) + ' mg/L（' + gd.lab + '）</div>'
+  + '<div><span class="k">说明：</span>数值 + 区间色带；非"超标即定责"</div>';
+  popEl.classList.add("on");
+  selSec = s.id; render();
+  placePop(ev);
+}
+function placePop(ev){
+  if(!ev) return;
+  var r = document.getElementById("stage").getBoundingClientRect();
+  var x = ev.clientX - r.left + 14, y = ev.clientY - r.top + 12;
+  x = Math.min(x, r.width - 260); y = Math.min(y, r.height - 130);
+  popEl.style.left = x + "px"; popEl.style.top = y + "px";
+}
+document.getElementById("stage").addEventListener("click", function(){ popEl.classList.remove("on"); });
+
+/* ---- 人工确认（点击已选中的源 = 确认） ---- */
+/* 双击源标记确认；为便于演示也支持键盘 C */
+document.addEventListener("keydown", function(e){
+  if(quizOn){ return; }                       /* 「你来溯源」模式下 C 不参与确认 */
+  if((e.key === "c" || e.key === "C") && selSrc){
+    confirmed[selSrc] = !confirmed[selSrc];
+    var s = SRCS.filter(function(x){ return x.id===selSrc; })[0];
+    showSrcPop(s, null); render();
+  }
+});
+/* （原"点击两次确认"的独立 hack 已移除——确认逻辑并入 onSrcClick，避免 cloneNode 丢失监听） */
+
+/* ---- 播放 ---- */
+function play(on){
+  playing = (on === undefined ? !playing : on);
+  document.getElementById("play").textContent = playing ? "❚❚" : "▶";
+  if(playing){ last = performance.now(); raf = requestAnimationFrame(loop); }
+  else if(raf){ cancelAnimationFrame(raf); raf = null; }
+}
+function loop(now){
+  if(!playing) return;
+  var dt = Math.min(0.05, (now - last)/1000); last = now;
+  T += dt * 0.26;
+  if(T > 1){ T = 0; }              /* 循环 */
+  tEl.value = Math.round(T*1000);
+  render();
+  raf = requestAnimationFrame(loop);
+}
+document.getElementById("play").addEventListener("click", function(){ play(); });
+tEl.addEventListener("input", function(){
+  play(false); T = parseInt(tEl.value,10)/1000; render();
+});
+
+/* ---- 自适应 ---- */
+window.addEventListener("resize", function(){ render(); });
+
+/* ===================== 答辩加分交互（本轮新增） ===================== */
+
+/* ---------- ① 授时基准 → 迁移时间窗与可辨识性 ---------- */
+var syncMode = "beidou";
+var SYNC = {
+  beidou:{ clk:0.008, note:"各断面时间戳对齐到统一时基；时延 Δt 有效、跨断面可比（设计目标：触发对齐误差 <1 ms）。" },
+  free:  { clk:0.115, note:"各站时钟自由漂移；Δt 被时钟误差淹没，时间窗互相重叠 → 源不可分辨。" }
+};
+var BASE_HALF = 0.055;      /* 弥散与流速估计本身带来的时延不确定度 */
+var WS = 1.08;              /* 时间窗轨道横轴刻度：0 → T+08:00，右侧留余量 */
+
+function winOf(s){
+  var half = BASE_HALF + SYNC[syncMode].clk;
+  return { lo: Math.max(0, s.at - half), hi: Math.min(WS, s.at + half) };
+}
+
+var winRows = document.getElementById("winRows");
+function buildWin(){
+  var h = "";
+  SRCS.forEach(function(s){
+    h += '<div class="wrow"><span class="id">' + s.id + '</span>'
+      +  '<span class="wtrack">'
+      +  '<i class="wbar" data-w="' + s.id + '" style="background:' + s.col + '"></i>'
+      +  '<i class="wtick" data-k="' + s.id + '"></i>'
+      +  '</span></div>';
+  });
+  winRows.innerHTML = h;
+}
+
+function renderWin(){
+  var W = {}, ov = {};
+  SRCS.forEach(function(s){ W[s.id] = winOf(s); });
+  SRCS.forEach(function(s){
+    SRCS.forEach(function(o){
+      if(o.id === s.id) return;
+      if(W[s.id].lo <= W[o.id].hi && W[o.id].lo <= W[s.id].hi) ov[s.id] = 1;
+    });
+  });
+  SRCS.forEach(function(s){
+    var b = winRows.querySelector('[data-w="' + s.id + '"]');
+    var k = winRows.querySelector('[data-k="' + s.id + '"]');
+    if(!b) return;
+    b.style.left  = (W[s.id].lo * 100 / WS).toFixed(2) + "%";
+    b.style.width = ((W[s.id].hi - W[s.id].lo) * 100 / WS).toFixed(2) + "%";
+    b.className = "wbar" + (ov[s.id] ? " ov" : "");
+    k.style.left = (T * 100 / WS).toFixed(2) + "%";
+  });
+  var n = Object.keys(ov).length;
+  var v = document.getElementById("wverdict");
+  if(n === 0){
+    v.className = "wverdict ok";
+    v.innerHTML = "✅ 4 个候选源时间窗<b>互不重叠</b> → 满足时延约束的源可分辨 → 可输出贡献度区间。";
+  } else {
+    v.className = "wverdict no";
+    v.innerHTML = "⚠ " + n + " 个源的时间窗<b>相互重叠</b> → 满足约束的源不止一个 → 按设计输出「<b>不可辨识</b>」，不给权重。";
+  }
+}
+
+function setSync(m){
+  syncMode = m;
+  document.getElementById("mBd").classList.toggle("on", m === "beidou");
+  document.getElementById("mFr").classList.toggle("on", m === "free");
+  document.getElementById("syncNote").textContent = SYNC[m].note;
+  render();
+}
+
+/* ---------- ② 一键自动演示（脚本化动线 + 字幕） ---------- */
+var DEMO = [
+  { t:0.04, sel:null,    say:"污染物在事件窗起点由上游进入河道——此刻只知道有水来了，还不知道是谁。" },
+  { t:0.16, sel:"SRC-1", say:"T+01:17 · 农田退水口一带浓度开始抬升（<b>SRC-1</b>），进入候选。" },
+  { t:0.38, sel:"SRC-2", say:"生活污水排放口同步响应（<b>SRC-2</b>）——候选源由 1 个增加到 2 个。" },
+  { t:0.53, sel:"SEC-B", say:"污染团抵达中游断面 B，氨氮 <b>1.57 mg/L</b>，超Ⅲ类。" },
+  { t:0.78, sel:"SRC-4", say:"继续向下游迁移，支流汇入点（<b>SRC-4</b>）进入筛选——共 4 个候选源。" },
+  { t:1.00, sel:null,    say:"沿程留痕反演出<b>贡献度区间</b>——注意：这是<b>线索排序</b>，不是定责。" }
+];
+var autoTimer = null, autoIdx = -1;
+
+function runAuto(){
+  if(autoTimer){ stopAuto(); return; }
+  play(false);
+  autoIdx = -1;
+  var b = document.getElementById("btnAuto");
+  b.classList.add("on"); b.textContent = "⏸ 停止演示";
+  stepAuto();
+}
+function stepAuto(){
+  autoIdx++;
+  if(autoIdx >= DEMO.length){ stopAuto(); return; }
+  var st = DEMO[autoIdx];
+  T = st.t; tEl.value = Math.round(T * 1000);
+  if(st.sel){
+    if(st.sel.indexOf("SEC") === 0){ selSec = st.sel; selSrc = null; }
+    else { selSrc = st.sel; selSec = null; }
+  } else { selSec = null; selSrc = null; }
+  render();
+  var c = document.getElementById("cap");
+  c.innerHTML = st.say; c.classList.add("on");
+  autoTimer = setTimeout(stepAuto, 4600);
+}
+function stopAuto(){
+  if(autoTimer){ clearTimeout(autoTimer); autoTimer = null; }
+  var b = document.getElementById("btnAuto");
+  if(b){ b.classList.remove("on"); b.textContent = "▶ 一键自动演示（约 30 秒动线）"; }
+  var c = document.getElementById("cap");
+  if(c) c.classList.remove("on");
+}
+
+/* ---------- ③ 你来溯源（评委参与 + 口径护栏） ---------- */
+var quizOn = false;
+function toggleQuiz(){
+  if(quizOn){
+    quizOn = false;
+    document.getElementById("quiz").classList.remove("on");
+    document.getElementById("btnQuiz").classList.remove("on");
+    return;
+  }
+  play(false); stopAuto();
+  quizOn = true; selSrc = null; selSec = null;
+  document.getElementById("btnQuiz").classList.add("on");
+  document.getElementById("quizQ").innerHTML =
+    "🔍 <b>请你来当调查员</b>：在右侧列表或河道上点选你认为的<b>责任源</b>。";
+  document.getElementById("quizCmp").innerHTML = "";
+  document.getElementById("quizGuard").innerHTML =
+    "无论你选哪一个，系统都<b>不会</b>给出「这就是肇事方」的结论——它只输出<b>线索排序与时间窗参考</b>。";
+  document.getElementById("quiz").classList.add("on");
+  render();
+}
+function showQuizCmp(id){
+  var s = SRCS.filter(function(x){ return x.id === id; })[0];
+  var ci = srcCI(s, T);
+  var best = null, bm = -1;
+  SRCS.forEach(function(o){ var c = srcCI(o, T), m = (c[0]+c[1])/2; if(m > bm){ bm = m; best = o; } });
+  var same = (best.id === id);
+  var noId = (syncMode === "free");
+  document.getElementById("quizQ").innerHTML = same
+    ? "🔍 你的判断与系统线索<b>一致</b>——但一致也只是<b>线索</b>，仍须人工复核留痕。"
+    : "🔍 你的判断与系统线索<b>不一致</b>——这正是本系统的设计立场：<b>人给结论，机器给线索</b>。";
+  document.getElementById("quizCmp").innerHTML =
+      '<div class="cell"><span class="k">你的判断</span>' + s.id + ' · ' + s.nm + '</div>'
+    + '<div class="cell"><span class="k">系统线索最强（区间中值）</span>'
+    + best.id + ' · ' + best.nm + '<br>'
+    + (noId ? '贡献度区间：不可辨识' : '贡献度约 ' + (bm*100).toFixed(0) + '%') + '</div>';
+  document.getElementById("quizGuard").innerHTML =
+    "系统给出的贡献度区间为 <b>" + (noId ? "不可辨识" : (ci[0]*100).toFixed(0) + "% – " + (ci[1]*100).toFixed(0) + "%")
+    + "</b>。它回答的是「<b>谁更值得排查</b>」，不是「谁有罪」；正式认定须按法定程序采样、由资质实验室出具。";
+}
+
+/* ---------- ④ 答辩要点抽屉 ---------- */
+function toggleQA(open){ document.getElementById("qa").classList.toggle("on", open); }
+
+/* ---------- 事件绑定 ---------- */
+document.getElementById("btnAuto").addEventListener("click", runAuto);
+document.getElementById("btnQuiz").addEventListener("click", toggleQuiz);
+document.getElementById("btnQA").addEventListener("click", function(){ toggleQA(true); });
+document.getElementById("qaClose").addEventListener("click", function(){ toggleQA(false); });
+document.getElementById("quizClose").addEventListener("click", function(){
+  quizOn = false;
+  document.getElementById("quiz").classList.remove("on");
+  document.getElementById("btnQuiz").classList.remove("on");
+  render();
+});
+document.getElementById("mBd").addEventListener("click", function(){ setSync("beidou"); });
+document.getElementById("mFr").addEventListener("click", function(){ setSync("free"); });
+/* ---------- 键盘快捷键（答辩现场不必找鼠标） ---------- */
+document.addEventListener("keydown", function(e){
+  if(e.target && e.target.tagName === "INPUT"){ return; }
+  var k = (e.key || "").toLowerCase();
+  if(e.code === "Space"){ e.preventDefault(); play(); return; }
+  if(k === "escape"){ toggleQA(false); if(quizOn){ toggleQuiz(); } return; }
+  if(k >= "1" && k <= "4"){ var s = SRCS[+k - 1]; if(s){ onSrcClick(s.id, null); } return; }
+  if(k === "a"){ runAuto(); return; }
+  if(k === "q"){ toggleQuiz(); return; }
+  if(k === "d"){ toggleQA(true); return; }
+  if(k === "b"){ setSync(syncMode === "beidou" ? "free" : "beidou"); return; }
+});
+
+/* ---- 启动（URL 深链：?t=0.55 定位时刻 · ?sync=free 切授时对比 · 不自动播放） ---- */
+buildPanels();
+buildWin();
+(function(){
+  var q = (location.search + "&" + location.hash).toLowerCase();
+  var ms = q.match(/[&#?]sync=(beidou|free)/);
+  if(ms){ setSync(ms[1]); }                 /* setSync 内部会触发一次 render */
+  var m = q.match(/[&#?]t=([\d.]+)/);
+  if(m){
+    T = Math.max(0, Math.min(1, parseFloat(m[1])));
+    tEl.value = Math.round(T*1000);
+    render();
+  } else {
+    render();
+    if(!ms){ setTimeout(function(){ play(true); }, 700); }   /* 深链定位/对比时不自动播放 */
+  }
+})();
+</script>
+</body>
+</html>
